@@ -18,6 +18,7 @@ import {
   PriceRecord,
 } from "@/lib/types";
 import { parseWorkbookFromUrl } from "@/lib/xlsx-io";
+import { api, apiEnabled, setApiActor } from "@/lib/api";
 
 interface DataContextValue {
   prices: PriceRecord[];
@@ -68,6 +69,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const actor = useRef<string>("system");
+  // Whether we successfully reached the on-premise API on this session.
+  // When false we run in fully local mode (xlsx fallback) — keeps Lovable
+  // preview working without any backend.
+  const useApi = useRef<boolean>(false);
 
   const log = useCallback(
     (action: AuditAction, summary: string, affectedIds?: string[], details?: Record<string, unknown>) => {
@@ -89,6 +94,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    // 1. Try the on-premise API first if VITE_API_URL is configured.
+    if (apiEnabled()) {
+      try {
+        await api.health();
+        const [pxs, ctrs, rts, aud] = await Promise.all([
+          api.listPrices(),
+          api.listContracts(),
+          api.getRates().catch(() => defaultRates),
+          api.listAudit().catch(() => [] as AuditLogEntry[]),
+        ]);
+        setPrices(pxs);
+        setContracts(ctrs);
+        setRatesState(rts);
+        setAuditLog(aud);
+        // Users still come from the xlsx template for now (auth seeding is
+        // handled server-side via the bcrypt seed script).
+        try {
+          const data = await parseWorkbookFromUrl("/templates/prices_template.xlsx");
+          setUsers(data.users);
+        } catch {
+          setUsers([]);
+        }
+        useApi.current = true;
+        setLoading(false);
+        return;
+      } catch (e) {
+        console.warn(
+          "[DataContext] API at VITE_API_URL is unreachable, falling back to local xlsx loader.",
+          e,
+        );
+      }
+    }
+    // 2. Fallback: the original in-memory / xlsx loader.
     try {
       const data = await parseWorkbookFromUrl("/templates/prices_template.xlsx");
       // backfill currency from contracts if available
@@ -119,6 +157,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setUsers(data.users);
       setContracts(contractsFinal);
       if (data.rates) setRatesState(data.rates);
+      useApi.current = false;
     } catch (e) {
       console.error("Failed to load template:", e);
     } finally {
@@ -141,6 +180,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       setActor: (username) => {
         actor.current = username ?? "anonymous";
+        setApiActor(username);
       },
 
       setAll: (p, u) => {
