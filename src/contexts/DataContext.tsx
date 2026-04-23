@@ -180,6 +180,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       setActor: (username) => {
         actor.current = username ?? "anonymous";
+        setApiActor(username);
       },
 
       setAll: (p, u) => {
