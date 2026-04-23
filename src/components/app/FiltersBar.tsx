@@ -22,14 +22,14 @@ export default function FiltersBar({ value, onChange, resultCount, totalCount }:
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Search className="size-4 text-muted-foreground" />
-          Filtros
+          Filters
           <span className="text-muted-foreground font-normal num">
-            · {resultCount} de {totalCount}
+            · {resultCount} of {totalCount}
           </span>
         </div>
         {hasActive && (
           <Button variant="ghost" size="sm" onClick={() => onChange(emptyFilters)}>
-            <X className="size-4" /> Limpar
+            <X className="size-4" /> Clear
           </Button>
         )}
       </header>
@@ -44,25 +44,25 @@ export default function FiltersBar({ value, onChange, resultCount, totalCount }:
         <Field label="Supplier">
           <Input value={value.supplier} onChange={(e) => set("supplier", e.target.value)} placeholder="Acme..." />
         </Field>
-        <Field label="Vigência (de)">
+        <Field label="Date From">
           <Input type="date" value={value.dateFrom} onChange={(e) => set("dateFrom", e.target.value)} />
         </Field>
-        <Field label="Vigência (até)">
+        <Field label="Date To">
           <Input type="date" value={value.dateTo} onChange={(e) => set("dateTo", e.target.value)} />
         </Field>
-        <Field label="Qtd entre">
+        <Field label="Quantity range">
           <div className="flex gap-1">
             <Input value={value.qtyFrom} onChange={(e) => set("qtyFrom", e.target.value)} placeholder="min" inputMode="numeric" />
             <Input value={value.qtyTo} onChange={(e) => set("qtyTo", e.target.value)} placeholder="max" inputMode="numeric" />
           </div>
         </Field>
-        <Field label="Unit Price entre">
+        <Field label="Unit Price range">
           <div className="flex gap-1">
             <Input value={value.unitPriceMin} onChange={(e) => set("unitPriceMin", e.target.value)} placeholder="min" inputMode="decimal" />
             <Input value={value.unitPriceMax} onChange={(e) => set("unitPriceMax", e.target.value)} placeholder="max" inputMode="decimal" />
           </div>
         </Field>
-        <Field label="Lot Price entre">
+        <Field label="Lot Price range">
           <div className="flex gap-1">
             <Input value={value.lotPriceMin} onChange={(e) => set("lotPriceMin", e.target.value)} placeholder="min" inputMode="decimal" />
             <Input value={value.lotPriceMax} onChange={(e) => set("lotPriceMax", e.target.value)} placeholder="max" inputMode="decimal" />

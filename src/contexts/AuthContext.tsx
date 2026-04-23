@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const found = users.find(
         (u) => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password,
       );
-      if (!found) return { ok: false, error: "Usuário ou senha inválidos." };
+      if (!found) return { ok: false, error: "Invalid username or password." };
       setUser(found);
       return { ok: true };
     },
