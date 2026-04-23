@@ -3,8 +3,9 @@ import { PriceRecord } from "@/lib/types";
 import { fmtDate, fmtMoney, fmtQty } from "@/lib/format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, History } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   rows: PriceRecord[];
@@ -106,8 +107,36 @@ function GroupRows({ items, selected, onToggle, onEdit, onDelete }: {
           </td>
           <td className="px-3 py-2.5 text-right num">{fmtQty(r.quantityFrom)}</td>
           <td className="px-3 py-2.5 text-right num">{fmtQty(r.quantityTo)}</td>
-          <td className="px-3 py-2.5 text-right num font-medium">{fmtMoney(r.unitPrice)}</td>
-          <td className="px-3 py-2.5 text-right num font-medium">{fmtMoney(r.lotPrice)}</td>
+          <td className="px-3 py-2.5 text-right num font-medium">
+            <div className="flex items-center justify-end gap-1.5">
+              {r.lastChangedAt && (r.previousUnitPrice !== undefined && r.previousUnitPrice !== r.unitPrice) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <History className="size-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Previous: {fmtMoney(r.previousUnitPrice, r.currency)}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {fmtMoney(r.unitPrice, r.currency)}
+            </div>
+          </td>
+          <td className="px-3 py-2.5 text-right num font-medium">
+            <div className="flex items-center justify-end gap-1.5">
+              {r.lastChangedAt && (r.previousLotPrice !== undefined && r.previousLotPrice !== r.lotPrice) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <History className="size-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Previous: {fmtMoney(r.previousLotPrice, r.currency)}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {fmtMoney(r.lotPrice, r.currency)}
+            </div>
+          </td>
           <td className="px-3 py-2.5 text-right">
             <div className="flex justify-end gap-0.5">
               <Button variant="ghost" size="icon" onClick={() => onEdit(r)} className="size-8"><Pencil className="size-3.5" /></Button>

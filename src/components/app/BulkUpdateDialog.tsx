@@ -73,7 +73,19 @@ export default function BulkUpdateDialog({ open, onOpenChange }: Props) {
       return next;
     };
 
-    const n = bulkUpdatePrices(matcher, transform);
+    const parts: string[] = [];
+    if (updatePrices) {
+      const fields = [updateUnit && "Unit", updateLot && "Lot"].filter(Boolean).join("+");
+      parts.push(mode === "percent" ? `${fields} ${num >= 0 ? "+" : ""}${num}%` : `${fields} = ${num}`);
+    }
+    if (updateDates) {
+      const dates: string[] = [];
+      if (newDateFrom) dates.push(`from ${newDateFrom}`);
+      if (newDateTo) dates.push(`to ${newDateTo}`);
+      parts.push(`dates ${dates.join(" ")}`);
+    }
+    const summary = `Bulk update on ${selector}=${target} · ${parts.join(" · ")}`;
+    const n = bulkUpdatePrices(matcher, transform, summary);
     toast.success(`${n} record(s) updated.`);
     onOpenChange(false);
     setTarget("");
