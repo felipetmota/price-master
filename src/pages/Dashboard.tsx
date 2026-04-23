@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function Dashboard() {
-  const { prices, users, deletePrices, addPrices, setAll, reload, loading } = useData();
+  const { prices, users, contracts, rates, deletePrices, addPrices, reload, loading } = useData();
   const [filters, setFilters] = useState<PriceFilters>(emptyFilters);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editorOpen, setEditorOpen] = useState(false);
@@ -53,7 +53,7 @@ export default function Dashboard() {
         toast.error("No records found in the 'prices' sheet.");
         return;
       }
-      addPrices(data.prices);
+      addPrices(data.prices, "import");
       toast.success(`${data.prices.length} record(s) imported.`);
     } catch (e) {
       console.error(e);
@@ -92,7 +92,7 @@ export default function Dashboard() {
             <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
               <Upload className="size-4" /> Import .xlsx
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportPricesToXlsx(prices, users)}>
+            <Button variant="outline" size="sm" onClick={() => exportPricesToXlsx(prices, users, contracts, rates)}>
               <Download className="size-4" /> Export
             </Button>
             <Button variant="outline" size="sm" onClick={() => reload()} disabled={loading}>

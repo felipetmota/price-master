@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { PriceRecord, QTY_MAX } from "@/lib/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Currency, PriceRecord, QTY_MAX } from "@/lib/types";
 import { useData, newId } from "@/contexts/DataContext";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
@@ -28,11 +30,17 @@ type CommonDraft = {
 const emptyCommon: CommonDraft = { contractNumber: "", partNumber: "", supplier: "", dateFrom: "", dateTo: "" };
 
 export default function PriceEditorDialog({ open, onOpenChange, editing }: Props) {
-  const { addPrices, updatePrice } = useData();
+  const { addPrices, updatePrice, contracts } = useData();
   const [mode, setMode] = useState<"unit" | "lot">("unit");
   const [common, setCommon] = useState<CommonDraft>(emptyCommon);
   const [breaks, setBreaks] = useState<DraftBreak[]>([{ quantityFrom: "1", quantityTo: String(QTY_MAX), unitPrice: "" }]);
   const [lot, setLot] = useState<LotDraft>({ lotPrice: "" });
+
+  const selectedContract = useMemo(
+    () => contracts.find((c) => c.contractNumber === common.contractNumber),
+    [contracts, common.contractNumber],
+  );
+  const currency: Currency = selectedContract?.currency ?? "USD";
 
   useEffect(() => {
     if (!open) return;
@@ -68,6 +76,10 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
       toast.error("Fill in contract, part number, supplier and dates.");
       return;
     }
+    if (!selectedContract) {
+      toast.error("Selected contract not found. Register it in Admin → Contracts first.");
+      return;
+    }
     if (mode === "unit") {
       for (const b of breaks) {
         if (!b.unitPrice || !b.quantityFrom || !b.quantityTo) {
@@ -83,6 +95,7 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
           quantityTo: Number(b.quantityTo),
           unitPrice: Number(b.unitPrice),
           lotPrice: null,
+          currency,
         });
         toast.success("Record updated.");
       } else {
@@ -93,6 +106,7 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
           quantityTo: Number(b.quantityTo),
           unitPrice: Number(b.unitPrice),
           lotPrice: null,
+          currency,
         }));
         addPrices(rows);
         toast.success(`${rows.length} tier(s) created.`);
@@ -108,6 +122,7 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
         quantityTo: QTY_MAX,
         unitPrice: null,
         lotPrice: Number(lot.lotPrice),
+        currency,
       };
       if (editing) {
         updatePrice(editing.id, payload);
@@ -131,10 +146,29 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Contract Number"><Input value={common.contractNumber} onChange={(e) => setCommon({ ...common, contractNumber: e.target.value })} /></Field>
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-xs text-muted-foreground flex items-center gap-2">
+              Contract Number
+              {selectedContract && <Badge variant="secondary" className="font-mono text-[10px]">{currency}</Badge>}
+            </Label>
+            {contracts.length > 0 ? (
+              <Select value={common.contractNumber} onValueChange={(v) => setCommon({ ...common, contractNumber: v })}>
+                <SelectTrigger><SelectValue placeholder="Select a contract" /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {contracts.map((c) => (
+                    <SelectItem key={c.id} value={c.contractNumber}>
+                      <span className="font-mono">{c.contractNumber}</span>
+                      <span className="text-muted-foreground"> · {c.currency}{c.description ? ` · ${c.description}` : ""}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input value={common.contractNumber} onChange={(e) => setCommon({ ...common, contractNumber: e.target.value })} placeholder="No contracts — create in Admin → Contracts" />
+            )}
+          </div>
           <Field label="Part Number"><Input value={common.partNumber} onChange={(e) => setCommon({ ...common, partNumber: e.target.value })} /></Field>
           <Field label="Supplier"><Input value={common.supplier} onChange={(e) => setCommon({ ...common, supplier: e.target.value })} /></Field>
-          <div />
           <Field label="Date From"><Input type="date" value={common.dateFrom} onChange={(e) => setCommon({ ...common, dateFrom: e.target.value })} /></Field>
           <Field label="Date To"><Input type="date" value={common.dateTo} onChange={(e) => setCommon({ ...common, dateTo: e.target.value })} /></Field>
         </div>
@@ -155,7 +189,7 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
                   <div className="col-span-3"><Label className="text-xs text-muted-foreground">Qty To <span className="text-[10px]">(∞ = {QTY_MAX})</span></Label>
                     <Input value={b.quantityTo} inputMode="numeric" onChange={(e) => { const n = [...breaks]; n[i] = { ...b, quantityTo: e.target.value }; setBreaks(n); }} />
                   </div>
-                  <div className="col-span-5"><Label className="text-xs text-muted-foreground">Unit Price</Label>
+                  <div className="col-span-5"><Label className="text-xs text-muted-foreground">Unit Price ({currency})</Label>
                     <Input value={b.unitPrice} inputMode="decimal" onChange={(e) => { const n = [...breaks]; n[i] = { ...b, unitPrice: e.target.value }; setBreaks(n); }} />
                   </div>
                   <div className="col-span-1">
@@ -174,7 +208,7 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
           </TabsContent>
 
           <TabsContent value="lot" className="mt-3">
-            <Field label="Lot Price">
+            <Field label={`Lot Price (${currency})`}>
               <Input value={lot.lotPrice} inputMode="decimal" onChange={(e) => setLot({ lotPrice: e.target.value })} />
             </Field>
             <p className="mt-2 text-xs text-muted-foreground">

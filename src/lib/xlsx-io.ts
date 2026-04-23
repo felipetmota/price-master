@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { AppUser, PriceRecord, QTY_MAX } from "./types";
+import { AppUser, Contract, Currency, CURRENCIES, ExchangeRates, PriceRecord, QTY_MAX } from "./types";
 
 const PRICE_HEADERS = [
   "Contract Number",
@@ -11,6 +11,7 @@ const PRICE_HEADERS = [
   "Quantity To",
   "Unit Price",
   "Lot Price",
+  "Currency",
 ];
 
 let counter = 0;
@@ -47,6 +48,8 @@ function toNumber(v: unknown): number | null {
 export interface ParsedWorkbook {
   prices: PriceRecord[];
   users: AppUser[];
+  contracts: Contract[];
+  rates?: ExchangeRates;
 }
 
 export async function parseWorkbookFromUrl(url: string): Promise<ParsedWorkbook> {
@@ -59,12 +62,15 @@ export function parseWorkbookFromBuffer(buf: ArrayBuffer): ParsedWorkbook {
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const prices: PriceRecord[] = [];
   const users: AppUser[] = [];
+  const contracts: Contract[] = [];
+  let rates: ExchangeRates | undefined;
 
   const pricesSheet = wb.Sheets["prices"] || wb.Sheets[wb.SheetNames[0]];
   if (pricesSheet) {
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(pricesSheet, { defval: null });
     for (const r of rows) {
       const qTo = toNumber(r["Quantity To"]) ?? QTY_MAX;
+      const cur = String(r["Currency"] ?? "USD").trim().toUpperCase() as Currency;
       prices.push({
         id: newId(),
         contractNumber: String(r["Contract Number"] ?? "").trim(),
@@ -76,6 +82,7 @@ export function parseWorkbookFromBuffer(buf: ArrayBuffer): ParsedWorkbook {
         quantityTo: qTo,
         unitPrice: toNumber(r["Unit Price"]),
         lotPrice: toNumber(r["Lot Price"]),
+        currency: CURRENCIES.includes(cur) ? cur : "USD",
       });
     }
   }
@@ -92,10 +99,47 @@ export function parseWorkbookFromBuffer(buf: ArrayBuffer): ParsedWorkbook {
       });
     }
   }
-  return { prices, users };
+
+  const contractsSheet = wb.Sheets["contracts"];
+  if (contractsSheet) {
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(contractsSheet, { defval: null });
+    for (const r of rows) {
+      const cur = String(r["Currency"] ?? "USD").trim().toUpperCase() as Currency;
+      contracts.push({
+        id: newId(),
+        contractNumber: String(r["Contract Number"] ?? "").trim(),
+        description: String(r["Description"] ?? "").trim(),
+        currency: CURRENCIES.includes(cur) ? cur : "USD",
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  const ratesSheet = wb.Sheets["rates"];
+  if (ratesSheet) {
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ratesSheet, { defval: null });
+    const r: Record<Currency, number> = { USD: 1, EUR: 0, GBP: 0, BRL: 0 };
+    let base: Currency = "USD";
+    for (const row of rows) {
+      const code = String(row["Currency"] ?? "").trim().toUpperCase() as Currency;
+      const rate = toNumber(row["Rate"]) ?? 0;
+      if (CURRENCIES.includes(code)) r[code] = rate;
+      const isBase = String(row["Base"] ?? "").trim().toLowerCase();
+      if (isBase === "yes" || isBase === "true" || isBase === "1") base = code;
+    }
+    rates = { base, rates: r, updatedAt: new Date().toISOString() };
+  }
+
+  return { prices, users, contracts, rates };
 }
 
-export function exportPricesToXlsx(prices: PriceRecord[], users: AppUser[], filename = "prices_export.xlsx") {
+export function exportPricesToXlsx(
+  prices: PriceRecord[],
+  users: AppUser[],
+  contracts: Contract[] = [],
+  rates?: ExchangeRates,
+  filename = "prices_export.xlsx",
+) {
   const priceRows = prices.map((p) => ({
     "Contract Number": p.contractNumber,
     "Part Number": p.partNumber,
@@ -106,6 +150,7 @@ export function exportPricesToXlsx(prices: PriceRecord[], users: AppUser[], file
     "Quantity To": p.quantityTo,
     "Unit Price": p.unitPrice,
     "Lot Price": p.lotPrice,
+    "Currency": p.currency ?? "USD",
   }));
   const ws = XLSX.utils.json_to_sheet(priceRows, { header: PRICE_HEADERS });
   const wb = XLSX.utils.book_new();
@@ -114,6 +159,28 @@ export function exportPricesToXlsx(prices: PriceRecord[], users: AppUser[], file
   if (users.length) {
     const us = XLSX.utils.json_to_sheet(users);
     XLSX.utils.book_append_sheet(wb, us, "users");
+  }
+
+  if (contracts.length) {
+    const cs = XLSX.utils.json_to_sheet(
+      contracts.map((c) => ({
+        "Contract Number": c.contractNumber,
+        "Description": c.description,
+        "Currency": c.currency,
+      })),
+    );
+    XLSX.utils.book_append_sheet(wb, cs, "contracts");
+  }
+
+  if (rates) {
+    const rs = XLSX.utils.json_to_sheet(
+      (Object.keys(rates.rates) as Currency[]).map((c) => ({
+        Currency: c,
+        Rate: rates.rates[c],
+        Base: c === rates.base ? "yes" : "",
+      })),
+    );
+    XLSX.utils.book_append_sheet(wb, rs, "rates");
   }
 
   XLSX.writeFile(wb, filename);
