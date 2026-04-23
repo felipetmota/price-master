@@ -33,7 +33,7 @@ export default function PricesTable({ rows, selected, onToggle, onToggleAll, onE
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-12 text-center text-sm text-muted-foreground">
-        Nenhum registro encontrado.
+        No records found.
       </div>
     );
   }
@@ -47,9 +47,10 @@ export default function PricesTable({ rows, selected, onToggle, onToggleAll, onE
               <th className="px-3 py-2.5 w-10">
                 <Checkbox checked={allChecked} onCheckedChange={(v) => onToggleAll(!!v)} />
               </th>
-              <th className="px-3 py-2.5 text-left font-medium">Part / Contrato</th>
+              <th className="px-3 py-2.5 text-left font-medium">Contract Number</th>
+              <th className="px-3 py-2.5 text-left font-medium">Part Number</th>
               <th className="px-3 py-2.5 text-left font-medium">Supplier</th>
-              <th className="px-3 py-2.5 text-left font-medium">Vigência</th>
+              <th className="px-3 py-2.5 text-left font-medium">Validity</th>
               <th className="px-3 py-2.5 text-right font-medium">Qty From</th>
               <th className="px-3 py-2.5 text-right font-medium">Qty To</th>
               <th className="px-3 py-2.5 text-right font-medium">Unit Price</th>
@@ -86,12 +87,14 @@ function GroupRows({ items, selected, onToggle, onEdit, onDelete }: {
           </td>
           <td className="px-3 py-2.5">
             {i === 0 ? (
-              <div>
-                <div className="font-medium flex items-center gap-2">
-                  {r.partNumber}
-                  {isLot ? <Badge variant="secondary" className="font-normal">Lot</Badge> : items.length > 1 ? <Badge variant="secondary" className="font-normal">{items.length} faixas</Badge> : null}
-                </div>
-                <div className="text-xs text-muted-foreground font-mono">{r.contractNumber}</div>
+              <span className="font-mono text-xs">{r.contractNumber}</span>
+            ) : null}
+          </td>
+          <td className="px-3 py-2.5">
+            {i === 0 ? (
+              <div className="font-medium flex items-center gap-2">
+                {r.partNumber}
+                {isLot ? <Badge variant="secondary" className="font-normal">Lot</Badge> : items.length > 1 ? <Badge variant="secondary" className="font-normal">{items.length} tiers</Badge> : null}
               </div>
             ) : (
               <span className="text-xs text-muted-foreground pl-3">↳</span>

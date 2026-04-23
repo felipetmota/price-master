@@ -19,7 +19,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <p className="text-xs text-muted-foreground font-mono">{user?.username} · {user?.role}</p>
             </div>
             <Button variant="ghost" size="sm" onClick={logout}>
-              <LogOut className="size-4" /> Sair
+              <LogOut className="size-4" /> Sign out
             </Button>
           </div>
         </div>

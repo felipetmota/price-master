@@ -20,7 +20,7 @@ export default function Login() {
     const res = login(username, password);
     setSubmitting(false);
     if (res.ok === true) {
-      toast.success("Bem-vindo.");
+      toast.success("Welcome.");
     } else {
       toast.error(res.error);
     }
@@ -29,7 +29,7 @@ export default function Login() {
   const fillCredentials = (u: string, p: string) => {
     setUsername(u);
     setPassword(p);
-    toast.message("Credenciais preenchidas — clique em Entrar.");
+    toast.message("Credentials filled — click Sign in.");
   };
 
   return (
@@ -41,18 +41,18 @@ export default function Login() {
         </div>
         <div className="space-y-6 max-w-md">
           <h1 className="text-4xl font-semibold tracking-tight leading-tight">
-            Gestão de preços contratuais, sem ruído.
+            Contract price management, without the noise.
           </h1>
           <p className="text-primary-foreground/70 leading-relaxed">
-            Cadastre price breaks, importe planilhas e aplique reajustes em massa por item ou fornecedor — tudo com controle e rastreabilidade.
+            Register price breaks, import spreadsheets and apply bulk updates by item or supplier — all with control and traceability.
           </p>
           <ul className="space-y-2 text-sm text-primary-foreground/60">
-            <li>— Importação direta via Excel</li>
-            <li>— Edição em massa por percentual ou valor fixo</li>
-            <li>— Filtros avançados em todos os campos</li>
+            <li>— Direct Excel import</li>
+            <li>— Bulk edit by percentage or fixed value</li>
+            <li>— Advanced filters on every field</li>
           </ul>
         </div>
-        <p className="text-xs text-primary-foreground/40">Ambiente de teste · dados em memória</p>
+        <p className="text-xs text-primary-foreground/40">Test environment · in-memory data</p>
       </section>
 
       <section className="flex items-center justify-center p-6 sm:p-12">
@@ -61,32 +61,32 @@ export default function Login() {
             <div className="inline-flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <LockKeyhole className="size-5" />
             </div>
-            <h2 className="text-2xl font-semibold tracking-tight">Entrar</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
             <p className="text-sm text-muted-foreground">
-              Acesse com suas credenciais de teste definidas na aba <span className="font-mono">users</span>.
+              Sign in with the test credentials defined in the <span className="font-mono">users</span> sheet.
             </p>
           </header>
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Usuário</Label>
+              <Label htmlFor="username">Username</Label>
               <Input id="username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             <Button type="submit" className="w-full" disabled={loading || submitting}>
-              {loading ? (<><Loader2 className="size-4 animate-spin" /> Carregando dados…</>) : "Entrar"}
+              {loading ? (<><Loader2 className="size-4 animate-spin" /> Loading data…</>) : "Sign in"}
             </Button>
           </form>
 
           {users.length > 0 && (
             <div className="rounded-lg border bg-card p-4 space-y-3">
               <div>
-                <p className="text-sm font-medium text-foreground">Credenciais de teste</p>
+                <p className="text-sm font-medium text-foreground">Test credentials</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Clique em uma das opções abaixo para preencher automaticamente, depois clique em <span className="font-medium text-foreground">Entrar</span>.
+                  Click an option below to auto-fill, then click <span className="font-medium text-foreground">Sign in</span>.
                 </p>
               </div>
               <div className="grid gap-2">
