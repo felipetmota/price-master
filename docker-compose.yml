@@ -1,0 +1,46 @@
+# ---------------------------------------------------------------------
+# Price Management — API only stack for Portainer.
+#
+# Assumes you ALREADY have:
+#   - PostgreSQL running on the host (or in another stack)
+#   - Traefik handling routing + TLS
+#   - The frontend `dist/` served by your existing nginx
+#
+# How to deploy in Portainer:
+#   1. Stacks → Add stack → "Web editor"
+#   2. Paste this file
+#   3. Fill in environment variables (Portainer shows them automatically):
+#        - DATABASE_URL   (e.g. postgres://price:secret@host.docker.internal:5432/price_management)
+#        - API_HOST       (e.g. price-api.intranet.local)
+#        - CORS_ORIGIN    (e.g. https://prices.intranet.local)
+#   4. Deploy. Traefik will pick up the labels automatically.
+# ---------------------------------------------------------------------
+services:
+  api:
+    build:
+      context: ./server
+    image: price-management-api:latest
+    container_name: price-management-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PGSSL: ${PGSSL:-false}
+      PORT: 3001
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.price-api.rule=Host(`${API_HOST}`)"
+      - "traefik.http.routers.price-api.entrypoints=websecure"
+      - "traefik.http.routers.price-api.tls=true"
+      # If you use Let's Encrypt with a resolver named "le", uncomment:
+      # - "traefik.http.routers.price-api.tls.certresolver=le"
+      - "traefik.http.services.price-api.loadbalancer.server.port=3001"
+
+networks:
+  traefik:
+    # Set `external: true` if your Traefik network is managed outside this stack.
+    external: true
+    name: traefik

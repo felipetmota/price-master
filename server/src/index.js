@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 
 const { query } = require("./db");
+const { ensureSchema } = require("./migrate");
 const prices = require("./routes/prices");
 const contracts = require("./routes/contracts");
 const rates = require("./routes/rates");
@@ -36,6 +37,31 @@ app.use((err, _req, res, _next) => {
 });
 
 const port = Number(process.env.PORT || 3001);
-app.listen(port, () => {
-  console.log(`[api] Listening on http://localhost:${port}`);
-});
+
+(async () => {
+  // Wait for the database, then auto-create schema on first boot.
+  let attempts = 0;
+  while (true) {
+    try {
+      await query("SELECT 1");
+      break;
+    } catch (e) {
+      attempts++;
+      if (attempts > 30) {
+        console.error("[api] Could not reach database after 30 attempts:", e.message);
+        process.exit(1);
+      }
+      console.log(`[api] Waiting for database (attempt ${attempts})...`);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  try {
+    await ensureSchema();
+  } catch (e) {
+    console.error("[api] Schema migration failed:", e.message);
+    process.exit(1);
+  }
+  app.listen(port, () => {
+    console.log(`[api] Listening on http://localhost:${port}`);
+  });
+})();
