@@ -18,7 +18,6 @@ import {
   PriceRecord,
 } from "@/lib/types";
 import { parseWorkbookFromUrl } from "@/lib/xlsx-io";
-import { convertCurrency } from "@/lib/format";
 
 interface DataContextValue {
   prices: PriceRecord[];

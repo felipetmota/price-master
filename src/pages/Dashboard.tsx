@@ -113,6 +113,10 @@ export default function Dashboard() {
 
         <FiltersBar value={filters} onChange={setFilters} resultCount={filtered.length} totalCount={prices.length} />
 
+        <p className="text-xs text-muted-foreground">
+          Prices below are displayed in <span className="font-mono font-medium text-foreground">{rates.base}</span> using the current exchange rates. The original currency of each record is preserved on hover.
+        </p>
+
         {selected.size > 0 && (
           <div className="flex items-center justify-between rounded-lg border bg-accent-soft px-4 py-2.5 text-sm">
             <span><span className="font-medium num">{selected.size}</span> record(s) selected</span>
