@@ -1,24 +1,23 @@
 const express = require("express");
-const { sql, getPool } = require("../db");
+const { query } = require("../db");
 const { writeAudit, actorFromRequest } = require("../audit");
 
 const router = express.Router();
 
 function rowToContract(r) {
   return {
-    id: r.Id,
-    contractNumber: r.ContractNumber,
-    description: r.Description,
-    currency: r.Currency,
-    createdAt: r.CreatedAt ? r.CreatedAt.toISOString() : new Date().toISOString(),
+    id: r.id,
+    contractNumber: r.contract_number,
+    description: r.description,
+    currency: r.currency,
+    createdAt: r.created_at ? r.created_at.toISOString() : new Date().toISOString(),
   };
 }
 
 router.get("/", async (_req, res, next) => {
   try {
-    const pool = await getPool();
-    const result = await pool.request().query("SELECT * FROM dbo.Contracts ORDER BY ContractNumber");
-    res.json(result.recordset.map(rowToContract));
+    const { rows } = await query("SELECT * FROM contracts ORDER BY contract_number");
+    res.json(rows.map(rowToContract));
   } catch (e) {
     next(e);
   }
@@ -27,23 +26,18 @@ router.get("/", async (_req, res, next) => {
 router.post("/", async (req, res, next) => {
   try {
     const { contractNumber, description = "", currency = "USD" } = req.body || {};
-    const pool = await getPool();
-    const result = await pool
-      .request()
-      .input("contractNumber", sql.NVarChar(64), contractNumber)
-      .input("description", sql.NVarChar(500), description)
-      .input("currency", sql.Char(3), currency)
-      .query(
-        `INSERT INTO dbo.Contracts (ContractNumber, Description, Currency)
-         OUTPUT INSERTED.*
-         VALUES (@contractNumber, @description, @currency)`,
-      );
+    const { rows } = await query(
+      `INSERT INTO contracts (contract_number, description, currency)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [contractNumber, description, currency],
+    );
     await writeAudit({
       user: actorFromRequest(req),
       action: "contract.create",
       summary: `Created contract ${contractNumber} (${currency})`,
     });
-    res.status(201).json(rowToContract(result.recordset[0]));
+    res.status(201).json(rowToContract(rows[0]));
   } catch (e) {
     next(e);
   }
@@ -53,28 +47,23 @@ router.put("/:id", async (req, res, next) => {
   try {
     const id = req.params.id;
     const patch = req.body || {};
-    const pool = await getPool();
-    const result = await pool
-      .request()
-      .input("id", sql.UniqueIdentifier, id)
-      .input("contractNumber", sql.NVarChar(64), patch.contractNumber || null)
-      .input("description", sql.NVarChar(500), patch.description ?? null)
-      .input("currency", sql.Char(3), patch.currency || null)
-      .query(`
-        UPDATE dbo.Contracts SET
-          ContractNumber = COALESCE(@contractNumber, ContractNumber),
-          Description    = COALESCE(@description,    Description),
-          Currency       = COALESCE(@currency,       Currency)
-        OUTPUT INSERTED.*
-        WHERE Id = @id`);
-    if (!result.recordset.length) return res.status(404).json({ error: "Not found" });
+    const { rows } = await query(
+      `UPDATE contracts SET
+         contract_number = COALESCE($1, contract_number),
+         description     = COALESCE($2, description),
+         currency        = COALESCE($3, currency)
+       WHERE id = $4
+       RETURNING *`,
+      [patch.contractNumber || null, patch.description ?? null, patch.currency || null, id],
+    );
+    if (!rows.length) return res.status(404).json({ error: "Not found" });
     await writeAudit({
       user: actorFromRequest(req),
       action: "contract.update",
-      summary: `Updated contract ${result.recordset[0].ContractNumber}`,
+      summary: `Updated contract ${rows[0].contract_number}`,
       details: { patch },
     });
-    res.json(rowToContract(result.recordset[0]));
+    res.json(rowToContract(rows[0]));
   } catch (e) {
     next(e);
   }
@@ -83,19 +72,12 @@ router.put("/:id", async (req, res, next) => {
 router.delete("/:id", async (req, res, next) => {
   try {
     const id = req.params.id;
-    const pool = await getPool();
-    const before = await pool
-      .request()
-      .input("id", sql.UniqueIdentifier, id)
-      .query("SELECT ContractNumber FROM dbo.Contracts WHERE Id = @id");
-    await pool
-      .request()
-      .input("id", sql.UniqueIdentifier, id)
-      .query("DELETE FROM dbo.Contracts WHERE Id = @id");
+    const { rows: before } = await query("SELECT contract_number FROM contracts WHERE id = $1", [id]);
+    await query("DELETE FROM contracts WHERE id = $1", [id]);
     await writeAudit({
       user: actorFromRequest(req),
       action: "contract.delete",
-      summary: `Deleted contract ${before.recordset[0]?.ContractNumber ?? id}`,
+      summary: `Deleted contract ${before[0]?.contract_number ?? id}`,
     });
     res.json({ ok: true });
   } catch (e) {
