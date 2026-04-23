@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { PriceRecord } from "@/lib/types";
-import { fmtDate, fmtMoney, fmtQty } from "@/lib/format";
+import { Currency, PriceRecord } from "@/lib/types";
+import { convertCurrency, fmtDate, fmtMoney, fmtQty } from "@/lib/format";
+import { useData } from "@/contexts/DataContext";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, History } from "lucide-react";
@@ -17,6 +18,8 @@ interface Props {
 }
 
 export default function PricesTable({ rows, selected, onToggle, onToggleAll, onEdit, onDelete }: Props) {
+  const { rates } = useData();
+  const display: Currency = rates.base;
   const groups = useMemo(() => {
     const map = new Map<string, PriceRecord[]>();
     rows.forEach((r) => {
@@ -61,7 +64,7 @@ export default function PricesTable({ rows, selected, onToggle, onToggleAll, onE
           </thead>
           <tbody>
             {groups.map(([key, items]) => (
-              <GroupRows key={key} items={items} selected={selected} onToggle={onToggle} onEdit={onEdit} onDelete={(id) => onDelete([id])} />
+              <GroupRows key={key} items={items} selected={selected} onToggle={onToggle} onEdit={onEdit} onDelete={(id) => onDelete([id])} display={display} />
             ))}
           </tbody>
         </table>
@@ -70,15 +73,21 @@ export default function PricesTable({ rows, selected, onToggle, onToggleAll, onE
   );
 }
 
-function GroupRows({ items, selected, onToggle, onEdit, onDelete }: {
+function GroupRows({ items, selected, onToggle, onEdit, onDelete, display }: {
   items: PriceRecord[];
   selected: Set<string>;
   onToggle: (id: string) => void;
   onEdit: (r: PriceRecord) => void;
   onDelete: (id: string) => void;
+  display: Currency;
 }) {
+  const { rates } = useData();
   const head = items[0];
   const isLot = items.length === 1 && head.lotPrice !== null;
+  const conv = (v: number | null | undefined, from: Currency | undefined) => {
+    if (v === null || v === undefined) return null;
+    return convertCurrency(v, from ?? display, display, rates);
+  };
   return (
     <>
       {items.map((r, i) => (
@@ -115,11 +124,16 @@ function GroupRows({ items, selected, onToggle, onEdit, onDelete }: {
                     <History className="size-3 text-muted-foreground" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    Previous: {fmtMoney(r.previousUnitPrice, r.currency)}
+                    Previous: {fmtMoney(conv(r.previousUnitPrice, r.currency), display)}
+                    {r.currency && r.currency !== display && (
+                      <span className="block text-[10px] opacity-70">orig {fmtMoney(r.previousUnitPrice, r.currency)}</span>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               )}
-              {fmtMoney(r.unitPrice, r.currency)}
+              <span title={r.currency && r.currency !== display ? `Original: ${fmtMoney(r.unitPrice, r.currency)}` : undefined}>
+                {fmtMoney(conv(r.unitPrice, r.currency), display)}
+              </span>
             </div>
           </td>
           <td className="px-3 py-2.5 text-right num font-medium">
@@ -130,11 +144,16 @@ function GroupRows({ items, selected, onToggle, onEdit, onDelete }: {
                     <History className="size-3 text-muted-foreground" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    Previous: {fmtMoney(r.previousLotPrice, r.currency)}
+                    Previous: {fmtMoney(conv(r.previousLotPrice, r.currency), display)}
+                    {r.currency && r.currency !== display && (
+                      <span className="block text-[10px] opacity-70">orig {fmtMoney(r.previousLotPrice, r.currency)}</span>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               )}
-              {fmtMoney(r.lotPrice, r.currency)}
+              <span title={r.currency && r.currency !== display ? `Original: ${fmtMoney(r.lotPrice, r.currency)}` : undefined}>
+                {fmtMoney(conv(r.lotPrice, r.currency), display)}
+              </span>
             </div>
           </td>
           <td className="px-3 py-2.5 text-right">
