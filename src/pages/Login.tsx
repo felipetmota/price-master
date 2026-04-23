@@ -26,6 +26,12 @@ export default function Login() {
     }
   };
 
+  const fillCredentials = (u: string, p: string) => {
+    setUsername(u);
+    setPassword(p);
+    toast.message("Credenciais preenchidas — clique em Entrar.");
+  };
+
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-surface">
       <section className="hidden lg:flex flex-col justify-between p-12 bg-primary text-primary-foreground">
@@ -76,11 +82,30 @@ export default function Login() {
           </form>
 
           {users.length > 0 && (
-            <div className="rounded-lg border bg-card p-4 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Credenciais de teste</p>
-              {users.slice(0, 2).map((u) => (
-                <p key={u.username} className="font-mono">{u.username} / {u.password}</p>
-              ))}
+            <div className="rounded-lg border bg-card p-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Credenciais de teste</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Clique em uma das opções abaixo para preencher automaticamente, depois clique em <span className="font-medium text-foreground">Entrar</span>.
+                </p>
+              </div>
+              <div className="grid gap-2">
+                {users.slice(0, 2).map((u) => (
+                  <button
+                    key={u.username}
+                    type="button"
+                    onClick={() => fillCredentials(u.username, u.password)}
+                    className="flex items-center justify-between rounded-md border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="font-mono text-xs text-foreground">
+                      {u.username} / {u.password}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {u.role}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
