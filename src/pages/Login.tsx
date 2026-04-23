@@ -19,8 +19,11 @@ export default function Login() {
     setSubmitting(true);
     const res = login(username, password);
     setSubmitting(false);
-    if (res.ok) toast.success("Bem-vindo.");
-    else toast.error(res.error);
+    if (res.ok === true) {
+      toast.success("Bem-vindo.");
+    } else {
+      toast.error(res.error);
+    }
   };
 
   return (
