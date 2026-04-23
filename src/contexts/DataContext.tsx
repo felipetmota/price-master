@@ -18,6 +18,7 @@ import {
   PriceRecord,
 } from "@/lib/types";
 import { parseWorkbookFromUrl } from "@/lib/xlsx-io";
+import { convertCurrency } from "@/lib/format";
 
 interface DataContextValue {
   prices: PriceRecord[];
@@ -249,22 +250,61 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
 
       updateContract: (id, patch) => {
+        const before = contracts.find((x) => x.id === id);
         setContracts((cur) => cur.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-        // if currency changed, propagate to existing prices for this contract
-        if (patch.currency || patch.contractNumber) {
+
+        if (!before) {
+          log("contract.update", `Updated contract ${id}`, undefined, { patch });
+          return;
+        }
+
+        const numberChanged = patch.contractNumber && patch.contractNumber !== before.contractNumber;
+        const currencyChanged = patch.currency && patch.currency !== before.currency;
+
+        if (numberChanged || currencyChanged) {
+          let convertedCount = 0;
+          const affected: string[] = [];
           setPrices((cur) =>
             cur.map((p) => {
-              const c = contracts.find((x) => x.id === id);
-              if (!c || p.contractNumber !== c.contractNumber) return p;
+              if (p.contractNumber !== before.contractNumber) return p;
+              const newContractNumber = patch.contractNumber ?? p.contractNumber;
+              if (!currencyChanged) {
+                return { ...p, contractNumber: newContractNumber };
+              }
+              const fromCur: Currency = p.currency ?? before.currency;
+              const toCur: Currency = patch.currency!;
+              const newUnit =
+                p.unitPrice !== null ? convertCurrency(p.unitPrice, fromCur, toCur, rates) : null;
+              const newLot =
+                p.lotPrice !== null ? convertCurrency(p.lotPrice, fromCur, toCur, rates) : null;
+              convertedCount++;
+              affected.push(p.id);
               return {
                 ...p,
-                contractNumber: patch.contractNumber ?? p.contractNumber,
-                currency: patch.currency ?? p.currency,
+                contractNumber: newContractNumber,
+                currency: toCur,
+                unitPrice: newUnit,
+                lotPrice: newLot,
+                previousUnitPrice: p.unitPrice,
+                previousLotPrice: p.lotPrice,
+                previousDateFrom: p.dateFrom,
+                previousDateTo: p.dateTo,
+                lastChangedAt: new Date().toISOString(),
+                lastChangedBy: actor.current,
               };
             }),
           );
+
+          if (currencyChanged && convertedCount > 0) {
+            log(
+              "price.bulk_update",
+              `Currency change ${before.currency} → ${patch.currency} on contract ${before.contractNumber} · converted ${convertedCount} record(s)`,
+              affected,
+            );
+          }
         }
-        log("contract.update", `Updated contract ${id}`, undefined, { patch });
+
+        log("contract.update", `Updated contract ${before.contractNumber}`, undefined, { patch });
       },
 
       deleteContract: (id) => {
