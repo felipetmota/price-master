@@ -65,13 +65,13 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
 
   const submit = () => {
     if (!common.partNumber || !common.contractNumber || !common.supplier || !common.dateFrom || !common.dateTo) {
-      toast.error("Preencha contrato, part number, supplier e datas.");
+      toast.error("Fill in contract, part number, supplier and dates.");
       return;
     }
     if (mode === "unit") {
       for (const b of breaks) {
         if (!b.unitPrice || !b.quantityFrom || !b.quantityTo) {
-          toast.error("Preencha todas as faixas com quantidade e preço unitário.");
+          toast.error("Fill in all tiers with quantity and unit price.");
           return;
         }
       }
@@ -84,7 +84,7 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
           unitPrice: Number(b.unitPrice),
           lotPrice: null,
         });
-        toast.success("Registro atualizado.");
+        toast.success("Record updated.");
       } else {
         const rows: PriceRecord[] = breaks.map((b) => ({
           id: newId(),
@@ -95,11 +95,11 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
           lotPrice: null,
         }));
         addPrices(rows);
-        toast.success(`${rows.length} faixa(s) cadastrada(s).`);
+        toast.success(`${rows.length} tier(s) created.`);
       }
     } else {
       if (!lot.lotPrice) {
-        toast.error("Informe o Lot Price.");
+        toast.error("Provide the Lot Price.");
         return;
       }
       const payload = {
@@ -111,10 +111,10 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
       };
       if (editing) {
         updatePrice(editing.id, payload);
-        toast.success("Registro atualizado.");
+        toast.success("Record updated.");
       } else {
         addPrices([{ id: newId(), ...payload }]);
-        toast.success("Registro cadastrado.");
+        toast.success("Record created.");
       }
     }
     onOpenChange(false);
@@ -124,9 +124,9 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editing ? "Editar registro" : "Novo registro"}</DialogTitle>
+          <DialogTitle>{editing ? "Edit record" : "New record"}</DialogTitle>
           <DialogDescription>
-            {editing ? "Altere os campos e salve." : "Cadastre um item por price breaks (Unit Price) ou por lote (Lot Price)."}
+            {editing ? "Change fields and save." : "Register an item using price breaks (Unit Price) or by lot (Lot Price)."}
           </DialogDescription>
         </DialogHeader>
 
@@ -142,7 +142,7 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
         <Tabs value={mode} onValueChange={(v) => setMode(v as "unit" | "lot")} className="mt-2">
           <TabsList className="grid grid-cols-2">
             <TabsTrigger value="unit">Unit Price (price breaks)</TabsTrigger>
-            <TabsTrigger value="lot">Lot Price (lote)</TabsTrigger>
+            <TabsTrigger value="lot">Lot Price (lot)</TabsTrigger>
           </TabsList>
 
           <TabsContent value="unit" className="space-y-2 mt-3">
@@ -168,7 +168,7 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
             </div>
             {!editing && (
               <Button type="button" variant="outline" size="sm" onClick={() => setBreaks([...breaks, { quantityFrom: "", quantityTo: "", unitPrice: "" }])}>
-                <Plus className="size-4" /> Adicionar faixa
+                <Plus className="size-4" /> Add tier
               </Button>
             )}
           </TabsContent>
@@ -178,14 +178,14 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
               <Input value={lot.lotPrice} inputMode="decimal" onChange={(e) => setLot({ lotPrice: e.target.value })} />
             </Field>
             <p className="mt-2 text-xs text-muted-foreground">
-              A faixa será registrada de 1 a {QTY_MAX.toLocaleString()} (∞).
+              The tier will be recorded from 1 to {QTY_MAX.toLocaleString()} (∞).
             </p>
           </TabsContent>
         </Tabs>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={submit}>{editing ? "Salvar" : "Cadastrar"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit}>{editing ? "Save" : "Create"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
