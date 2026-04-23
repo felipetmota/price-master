@@ -12,14 +12,14 @@ export const fmtDate = (iso: string) => {
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
-  return `${m}/${d}/${y}`;
+  return `${d}/${m}/${y}`;
 };
 
 export const fmtDateTime = (iso: string) => {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" });
+  return d.toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" });
 };
 
 /**
