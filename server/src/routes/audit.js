@@ -1,24 +1,24 @@
 const express = require("express");
-const { getPool } = require("../db");
+const { query } = require("../db");
 
 const router = express.Router();
 
 router.get("/", async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 500, 5000);
-    const pool = await getPool();
-    const result = await pool
-      .request()
-      .query(`SELECT TOP (${limit}) * FROM dbo.AuditLog ORDER BY [At] DESC`);
+    const { rows } = await query(
+      "SELECT * FROM audit_log ORDER BY at DESC LIMIT $1",
+      [limit],
+    );
     res.json(
-      result.recordset.map((r) => ({
-        id: r.Id,
-        at: r.At.toISOString(),
-        user: r.User,
-        action: r.Action,
-        summary: r.Summary,
-        affectedIds: r.AffectedIds ? JSON.parse(r.AffectedIds) : undefined,
-        details: r.Details ? JSON.parse(r.Details) : undefined,
+      rows.map((r) => ({
+        id: r.id,
+        at: r.at.toISOString(),
+        user: r.user,
+        action: r.action,
+        summary: r.summary,
+        affectedIds: r.affected_ids ?? undefined,
+        details: r.details ?? undefined,
       })),
     );
   } catch (e) {

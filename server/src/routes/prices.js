@@ -1,42 +1,43 @@
 const express = require("express");
-const { sql, getPool } = require("../db");
+const { pool, query } = require("../db");
 const { writeAudit, actorFromRequest } = require("../audit");
 
 const router = express.Router();
 
+function isoDate(d) {
+  if (!d) return "";
+  if (typeof d === "string") return d.slice(0, 10);
+  return d.toISOString().slice(0, 10);
+}
+
 function rowToPrice(r) {
   return {
-    id: r.Id,
-    contractNumber: r.ContractNumber,
-    partNumber: r.PartNumber,
-    supplier: r.Supplier,
-    dateFrom: r.DateFrom ? r.DateFrom.toISOString().slice(0, 10) : "",
-    dateTo: r.DateTo ? r.DateTo.toISOString().slice(0, 10) : "",
-    quantityFrom: r.QuantityFrom,
-    quantityTo: r.QuantityTo,
-    unitPrice: r.UnitPrice !== null ? Number(r.UnitPrice) : null,
-    lotPrice: r.LotPrice !== null ? Number(r.LotPrice) : null,
-    currency: r.Currency,
+    id: r.id,
+    contractNumber: r.contract_number,
+    partNumber: r.part_number,
+    supplier: r.supplier,
+    dateFrom: isoDate(r.date_from),
+    dateTo: isoDate(r.date_to),
+    quantityFrom: r.quantity_from,
+    quantityTo: r.quantity_to,
+    unitPrice: r.unit_price !== null ? Number(r.unit_price) : null,
+    lotPrice: r.lot_price !== null ? Number(r.lot_price) : null,
+    currency: r.currency,
     previousUnitPrice:
-      r.PreviousUnitPrice !== null ? Number(r.PreviousUnitPrice) : undefined,
+      r.previous_unit_price !== null ? Number(r.previous_unit_price) : undefined,
     previousLotPrice:
-      r.PreviousLotPrice !== null ? Number(r.PreviousLotPrice) : undefined,
-    previousDateFrom: r.PreviousDateFrom
-      ? r.PreviousDateFrom.toISOString().slice(0, 10)
-      : undefined,
-    previousDateTo: r.PreviousDateTo
-      ? r.PreviousDateTo.toISOString().slice(0, 10)
-      : undefined,
-    lastChangedAt: r.LastChangedAt ? r.LastChangedAt.toISOString() : undefined,
-    lastChangedBy: r.LastChangedBy || undefined,
+      r.previous_lot_price !== null ? Number(r.previous_lot_price) : undefined,
+    previousDateFrom: r.previous_date_from ? isoDate(r.previous_date_from) : undefined,
+    previousDateTo: r.previous_date_to ? isoDate(r.previous_date_to) : undefined,
+    lastChangedAt: r.last_changed_at ? r.last_changed_at.toISOString() : undefined,
+    lastChangedBy: r.last_changed_by || undefined,
   };
 }
 
 router.get("/", async (_req, res, next) => {
   try {
-    const pool = await getPool();
-    const result = await pool.request().query("SELECT * FROM dbo.Prices");
-    res.json(result.recordset.map(rowToPrice));
+    const { rows } = await query("SELECT * FROM prices");
+    res.json(rows.map(rowToPrice));
   } catch (e) {
     next(e);
   }
@@ -46,31 +47,28 @@ router.post("/", async (req, res, next) => {
   try {
     const rows = Array.isArray(req.body) ? req.body : [req.body];
     const source = req.query.source === "import" ? "import" : "manual";
-    const pool = await getPool();
     const inserted = [];
     for (const r of rows) {
-      const result = await pool
-        .request()
-        .input("contractNumber", sql.NVarChar(64), r.contractNumber)
-        .input("partNumber", sql.NVarChar(128), r.partNumber)
-        .input("supplier", sql.NVarChar(256), r.supplier || "")
-        .input("dateFrom", sql.Date, r.dateFrom || null)
-        .input("dateTo", sql.Date, r.dateTo || null)
-        .input("quantityFrom", sql.Int, r.quantityFrom ?? 1)
-        .input("quantityTo", sql.Int, r.quantityTo ?? 9999999)
-        .input("unitPrice", sql.Decimal(18, 6), r.unitPrice)
-        .input("lotPrice", sql.Decimal(18, 6), r.lotPrice)
-        .input("currency", sql.Char(3), r.currency || "USD")
-        .query(
-          `INSERT INTO dbo.Prices
-            (ContractNumber, PartNumber, Supplier, DateFrom, DateTo,
-             QuantityFrom, QuantityTo, UnitPrice, LotPrice, Currency)
-           OUTPUT INSERTED.*
-           VALUES
-            (@contractNumber, @partNumber, @supplier, @dateFrom, @dateTo,
-             @quantityFrom, @quantityTo, @unitPrice, @lotPrice, @currency)`,
-        );
-      inserted.push(rowToPrice(result.recordset[0]));
+      const { rows: out } = await query(
+        `INSERT INTO prices
+           (contract_number, part_number, supplier, date_from, date_to,
+            quantity_from, quantity_to, unit_price, lot_price, currency)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         RETURNING *`,
+        [
+          r.contractNumber,
+          r.partNumber,
+          r.supplier || "",
+          r.dateFrom || null,
+          r.dateTo || null,
+          r.quantityFrom ?? 1,
+          r.quantityTo ?? 9999999,
+          r.unitPrice,
+          r.lotPrice,
+          r.currency || "USD",
+        ],
+      );
+      inserted.push(rowToPrice(out[0]));
     }
     await writeAudit({
       user: actorFromRequest(req),
@@ -91,67 +89,64 @@ router.put("/:id", async (req, res, next) => {
   try {
     const id = req.params.id;
     const patch = req.body || {};
-    const pool = await getPool();
+    const actor = actorFromRequest(req);
 
-    const existing = await pool
-      .request()
-      .input("id", sql.UniqueIdentifier, id)
-      .query("SELECT * FROM dbo.Prices WHERE Id = @id");
-    if (!existing.recordset.length) return res.status(404).json({ error: "Not found" });
-    const cur = existing.recordset[0];
+    const { rows: cur } = await query("SELECT * FROM prices WHERE id = $1", [id]);
+    if (!cur.length) return res.status(404).json({ error: "Not found" });
+    const c = cur[0];
 
     const next$ = {
-      ContractNumber: patch.contractNumber ?? cur.ContractNumber,
-      PartNumber: patch.partNumber ?? cur.PartNumber,
-      Supplier: patch.supplier ?? cur.Supplier,
-      DateFrom: patch.dateFrom ?? cur.DateFrom,
-      DateTo: patch.dateTo ?? cur.DateTo,
-      QuantityFrom: patch.quantityFrom ?? cur.QuantityFrom,
-      QuantityTo: patch.quantityTo ?? cur.QuantityTo,
-      UnitPrice: patch.unitPrice !== undefined ? patch.unitPrice : cur.UnitPrice,
-      LotPrice: patch.lotPrice !== undefined ? patch.lotPrice : cur.LotPrice,
-      Currency: patch.currency ?? cur.Currency,
+      contract_number: patch.contractNumber ?? c.contract_number,
+      part_number: patch.partNumber ?? c.part_number,
+      supplier: patch.supplier ?? c.supplier,
+      date_from: patch.dateFrom ?? c.date_from,
+      date_to: patch.dateTo ?? c.date_to,
+      quantity_from: patch.quantityFrom ?? c.quantity_from,
+      quantity_to: patch.quantityTo ?? c.quantity_to,
+      unit_price: patch.unitPrice !== undefined ? patch.unitPrice : c.unit_price,
+      lot_price: patch.lotPrice !== undefined ? patch.lotPrice : c.lot_price,
+      currency: patch.currency ?? c.currency,
     };
 
-    const actor = actorFromRequest(req);
-    const result = await pool
-      .request()
-      .input("id", sql.UniqueIdentifier, id)
-      .input("contractNumber", sql.NVarChar(64), next$.ContractNumber)
-      .input("partNumber", sql.NVarChar(128), next$.PartNumber)
-      .input("supplier", sql.NVarChar(256), next$.Supplier)
-      .input("dateFrom", sql.Date, next$.DateFrom)
-      .input("dateTo", sql.Date, next$.DateTo)
-      .input("quantityFrom", sql.Int, next$.QuantityFrom)
-      .input("quantityTo", sql.Int, next$.QuantityTo)
-      .input("unitPrice", sql.Decimal(18, 6), next$.UnitPrice)
-      .input("lotPrice", sql.Decimal(18, 6), next$.LotPrice)
-      .input("currency", sql.Char(3), next$.Currency)
-      .input("prevUnit", sql.Decimal(18, 6), cur.UnitPrice)
-      .input("prevLot", sql.Decimal(18, 6), cur.LotPrice)
-      .input("prevFrom", sql.Date, cur.DateFrom)
-      .input("prevTo", sql.Date, cur.DateTo)
-      .input("actor", sql.NVarChar(128), actor)
-      .query(`
-        UPDATE dbo.Prices SET
-          ContractNumber = @contractNumber,
-          PartNumber = @partNumber,
-          Supplier = @supplier,
-          DateFrom = @dateFrom,
-          DateTo = @dateTo,
-          QuantityFrom = @quantityFrom,
-          QuantityTo = @quantityTo,
-          UnitPrice = @unitPrice,
-          LotPrice = @lotPrice,
-          Currency = @currency,
-          PreviousUnitPrice = @prevUnit,
-          PreviousLotPrice = @prevLot,
-          PreviousDateFrom = @prevFrom,
-          PreviousDateTo = @prevTo,
-          LastChangedAt = SYSUTCDATETIME(),
-          LastChangedBy = @actor
-        OUTPUT INSERTED.*
-        WHERE Id = @id`);
+    const { rows: out } = await query(
+      `UPDATE prices SET
+         contract_number     = $1,
+         part_number         = $2,
+         supplier            = $3,
+         date_from           = $4,
+         date_to             = $5,
+         quantity_from       = $6,
+         quantity_to         = $7,
+         unit_price          = $8,
+         lot_price           = $9,
+         currency            = $10,
+         previous_unit_price = $11,
+         previous_lot_price  = $12,
+         previous_date_from  = $13,
+         previous_date_to    = $14,
+         last_changed_at     = NOW(),
+         last_changed_by     = $15
+       WHERE id = $16
+       RETURNING *`,
+      [
+        next$.contract_number,
+        next$.part_number,
+        next$.supplier,
+        next$.date_from,
+        next$.date_to,
+        next$.quantity_from,
+        next$.quantity_to,
+        next$.unit_price,
+        next$.lot_price,
+        next$.currency,
+        c.unit_price,
+        c.lot_price,
+        c.date_from,
+        c.date_to,
+        actor,
+        id,
+      ],
+    );
 
     await writeAudit({
       user: actor,
@@ -160,7 +155,7 @@ router.put("/:id", async (req, res, next) => {
       affectedIds: [id],
       details: { patch },
     });
-    res.json(rowToPrice(result.recordset[0]));
+    res.json(rowToPrice(out[0]));
   } catch (e) {
     next(e);
   }
@@ -170,13 +165,7 @@ router.delete("/", async (req, res, next) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
     if (!ids.length) return res.json({ deleted: 0 });
-    const pool = await getPool();
-    const request = pool.request();
-    const params = ids.map((id, i) => {
-      request.input(`id${i}`, sql.UniqueIdentifier, id);
-      return `@id${i}`;
-    });
-    await request.query(`DELETE FROM dbo.Prices WHERE Id IN (${params.join(",")})`);
+    await query("DELETE FROM prices WHERE id = ANY($1::uuid[])", [ids]);
     await writeAudit({
       user: actorFromRequest(req),
       action: "price.delete",
@@ -192,38 +181,35 @@ router.delete("/", async (req, res, next) => {
 router.post("/:id/revert", async (req, res, next) => {
   try {
     const id = req.params.id;
-    const pool = await getPool();
     const actor = actorFromRequest(req);
-    const result = await pool
-      .request()
-      .input("id", sql.UniqueIdentifier, id)
-      .input("actor", sql.NVarChar(128), actor)
-      .query(`
-        UPDATE dbo.Prices SET
-          UnitPrice = COALESCE(PreviousUnitPrice, UnitPrice),
-          LotPrice  = COALESCE(PreviousLotPrice,  LotPrice),
-          DateFrom  = COALESCE(PreviousDateFrom,  DateFrom),
-          DateTo    = COALESCE(PreviousDateTo,    DateTo),
-          PreviousUnitPrice = NULL,
-          PreviousLotPrice  = NULL,
-          PreviousDateFrom  = NULL,
-          PreviousDateTo    = NULL,
-          LastChangedAt = SYSUTCDATETIME(),
-          LastChangedBy = @actor
-        OUTPUT INSERTED.*
-        WHERE Id = @id
-          AND (PreviousUnitPrice IS NOT NULL
-            OR PreviousLotPrice  IS NOT NULL
-            OR PreviousDateFrom  IS NOT NULL
-            OR PreviousDateTo    IS NOT NULL)`);
-    if (!result.recordset.length) return res.status(409).json({ error: "Nothing to revert" });
+    const { rows: out } = await query(
+      `UPDATE prices SET
+         unit_price          = COALESCE(previous_unit_price, unit_price),
+         lot_price           = COALESCE(previous_lot_price,  lot_price),
+         date_from           = COALESCE(previous_date_from,  date_from),
+         date_to             = COALESCE(previous_date_to,    date_to),
+         previous_unit_price = NULL,
+         previous_lot_price  = NULL,
+         previous_date_from  = NULL,
+         previous_date_to    = NULL,
+         last_changed_at     = NOW(),
+         last_changed_by     = $1
+       WHERE id = $2
+         AND (previous_unit_price IS NOT NULL
+           OR previous_lot_price  IS NOT NULL
+           OR previous_date_from  IS NOT NULL
+           OR previous_date_to    IS NOT NULL)
+       RETURNING *`,
+      [actor, id],
+    );
+    if (!out.length) return res.status(409).json({ error: "Nothing to revert" });
     await writeAudit({
       user: actor,
       action: "price.revert",
       summary: `Reverted record ${id} to previous values`,
       affectedIds: [id],
     });
-    res.json(rowToPrice(result.recordset[0]));
+    res.json(rowToPrice(out[0]));
   } catch (e) {
     next(e);
   }
@@ -231,60 +217,48 @@ router.post("/:id/revert", async (req, res, next) => {
 
 /**
  * Bulk update — applies a patch to all rows matching simple equality filters.
- * Body: { match: { contractNumber?, partNumber?, supplier? }, patch: { unitPrice?, lotPrice?, dateFrom?, dateTo? }, summary: string }
+ * Body: { match: { contractNumber?, partNumber?, supplier? },
+ *         patch: { unitPrice?, lotPrice?, dateFrom?, dateTo? },
+ *         summary: string }
  */
 router.post("/bulk-update", async (req, res, next) => {
   try {
     const { match = {}, patch = {}, summary = "Bulk update" } = req.body || {};
-    const pool = await getPool();
     const actor = actorFromRequest(req);
 
-    const where = ["1=1"];
-    const request = pool.request().input("actor", sql.NVarChar(128), actor);
-    if (match.contractNumber) {
-      request.input("mc", sql.NVarChar(64), match.contractNumber);
-      where.push("ContractNumber = @mc");
-    }
-    if (match.partNumber) {
-      request.input("mp", sql.NVarChar(128), match.partNumber);
-      where.push("PartNumber = @mp");
-    }
-    if (match.supplier) {
-      request.input("ms", sql.NVarChar(256), match.supplier);
-      where.push("Supplier = @ms");
-    }
-
+    const where = ["TRUE"];
     const sets = [
-      "PreviousUnitPrice = UnitPrice",
-      "PreviousLotPrice = LotPrice",
-      "PreviousDateFrom = DateFrom",
-      "PreviousDateTo = DateTo",
-      "LastChangedAt = SYSUTCDATETIME()",
-      "LastChangedBy = @actor",
+      "previous_unit_price = unit_price",
+      "previous_lot_price = lot_price",
+      "previous_date_from = date_from",
+      "previous_date_to = date_to",
+      "last_changed_at = NOW()",
     ];
-    if (patch.unitPrice !== undefined) {
-      request.input("pUnit", sql.Decimal(18, 6), patch.unitPrice);
-      sets.push("UnitPrice = @pUnit");
-    }
-    if (patch.lotPrice !== undefined) {
-      request.input("pLot", sql.Decimal(18, 6), patch.lotPrice);
-      sets.push("LotPrice = @pLot");
-    }
-    if (patch.dateFrom !== undefined) {
-      request.input("pFrom", sql.Date, patch.dateFrom);
-      sets.push("DateFrom = @pFrom");
-    }
-    if (patch.dateTo !== undefined) {
-      request.input("pTo", sql.Date, patch.dateTo);
-      sets.push("DateTo = @pTo");
-    }
+    const params = [];
 
-    const result = await request.query(
-      `UPDATE dbo.Prices SET ${sets.join(", ")}
-       OUTPUT INSERTED.Id
-       WHERE ${where.join(" AND ")}`,
+    const addParam = (val) => {
+      params.push(val);
+      return `$${params.length}`;
+    };
+
+    sets.push(`last_changed_by = ${addParam(actor)}`);
+
+    if (match.contractNumber) where.push(`contract_number = ${addParam(match.contractNumber)}`);
+    if (match.partNumber)     where.push(`part_number = ${addParam(match.partNumber)}`);
+    if (match.supplier)       where.push(`supplier = ${addParam(match.supplier)}`);
+
+    if (patch.unitPrice !== undefined) sets.push(`unit_price = ${addParam(patch.unitPrice)}`);
+    if (patch.lotPrice !== undefined)  sets.push(`lot_price = ${addParam(patch.lotPrice)}`);
+    if (patch.dateFrom !== undefined)  sets.push(`date_from = ${addParam(patch.dateFrom)}`);
+    if (patch.dateTo !== undefined)    sets.push(`date_to = ${addParam(patch.dateTo)}`);
+
+    const { rows } = await pool.query(
+      `UPDATE prices SET ${sets.join(", ")}
+       WHERE ${where.join(" AND ")}
+       RETURNING id`,
+      params,
     );
-    const affectedIds = result.recordset.map((r) => r.Id);
+    const affectedIds = rows.map((r) => r.id);
     if (affectedIds.length) {
       await writeAudit({
         user: actor,

@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
-const { getPool } = require("./db");
+const { query } = require("./db");
 const prices = require("./routes/prices");
 const contracts = require("./routes/contracts");
 const rates = require("./routes/rates");
@@ -16,8 +16,7 @@ app.use(express.json({ limit: "10mb" }));
 
 app.get("/api/health", async (_req, res) => {
   try {
-    const pool = await getPool();
-    await pool.request().query("SELECT 1 AS ok");
+    await query("SELECT 1");
     res.json({ status: "ok", database: "connected" });
   } catch (e) {
     res.status(503).json({ status: "degraded", error: e.message });
