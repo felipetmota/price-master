@@ -1,0 +1,90 @@
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useData } from "@/contexts/DataContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Loader2, LockKeyhole } from "lucide-react";
+
+export default function Login() {
+  const { login } = useAuth();
+  const { loading, users } = useData();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const res = login(username, password);
+    setSubmitting(false);
+    if (res.ok === true) {
+      toast.success("Bem-vindo.");
+    } else {
+      toast.error(res.error);
+    }
+  };
+
+  return (
+    <main className="min-h-screen grid lg:grid-cols-2 bg-surface">
+      <section className="hidden lg:flex flex-col justify-between p-12 bg-primary text-primary-foreground">
+        <div className="flex items-center gap-2 font-semibold tracking-tight">
+          <span className="size-2 rounded-full bg-accent" />
+          Price Manager
+        </div>
+        <div className="space-y-6 max-w-md">
+          <h1 className="text-4xl font-semibold tracking-tight leading-tight">
+            Gestão de preços contratuais, sem ruído.
+          </h1>
+          <p className="text-primary-foreground/70 leading-relaxed">
+            Cadastre price breaks, importe planilhas e aplique reajustes em massa por item ou fornecedor — tudo com controle e rastreabilidade.
+          </p>
+          <ul className="space-y-2 text-sm text-primary-foreground/60">
+            <li>— Importação direta via Excel</li>
+            <li>— Edição em massa por percentual ou valor fixo</li>
+            <li>— Filtros avançados em todos os campos</li>
+          </ul>
+        </div>
+        <p className="text-xs text-primary-foreground/40">Ambiente de teste · dados em memória</p>
+      </section>
+
+      <section className="flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-sm space-y-8 animate-fade-in">
+          <header className="space-y-2">
+            <div className="inline-flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <LockKeyhole className="size-5" />
+            </div>
+            <h2 className="text-2xl font-semibold tracking-tight">Entrar</h2>
+            <p className="text-sm text-muted-foreground">
+              Acesse com suas credenciais de teste definidas na aba <span className="font-mono">users</span>.
+            </p>
+          </header>
+
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Usuário</Label>
+              <Input id="username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading || submitting}>
+              {loading ? (<><Loader2 className="size-4 animate-spin" /> Carregando dados…</>) : "Entrar"}
+            </Button>
+          </form>
+
+          {users.length > 0 && (
+            <div className="rounded-lg border bg-card p-4 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Credenciais de teste</p>
+              {users.slice(0, 2).map((u) => (
+                <p key={u.username} className="font-mono">{u.username} / {u.password}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
