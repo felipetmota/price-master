@@ -572,11 +572,11 @@ function AccessTab() {
                         <Checkbox
                           checked={checked}
                           disabled={isAdminUser}
-                          onCheckedChange={(v) => {
+                          onCheckedChange={async (v) => {
                             const next = new Set(u.systems ?? []);
                             if (v) next.add(s.key);
                             else next.delete(s.key);
-                            setUserSystems(u.username, Array.from(next));
+                            await setUserSystems(u.username, Array.from(next));
                             toast.success(
                               `${v ? "Granted" : "Revoked"} ${s.name} for ${u.username}.`,
                             );

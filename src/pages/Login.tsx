@@ -14,10 +14,10 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const res = login(username, password);
+    const res = await login(username, password);
     setSubmitting(false);
     if (res.ok === true) {
       toast.success("Welcome.");
