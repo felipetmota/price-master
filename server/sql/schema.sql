@@ -102,3 +102,42 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_audit_at     ON audit_log(at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+
+-- ---------------------------------------------------------------------
+-- Radiographic Examination Reports (X-ray Records)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS xray_reports (
+    id                       TEXT    PRIMARY KEY,
+    report_number            TEXT    NOT NULL UNIQUE,
+    part_no                  TEXT    NOT NULL DEFAULT '',
+    description              TEXT    NOT NULL DEFAULT '',
+    quantity                 TEXT    NOT NULL DEFAULT '',
+    report_date              TEXT,
+    operation_no             TEXT    NOT NULL DEFAULT '',
+    planning_card_no         TEXT    NOT NULL DEFAULT '',
+    customer                 TEXT    NOT NULL DEFAULT '',
+    xray_technique_no        TEXT    NOT NULL DEFAULT '',
+    issue                    TEXT    NOT NULL DEFAULT '',
+    kv                       TEXT    NOT NULL DEFAULT '',
+    ma                       TEXT    NOT NULL DEFAULT '',
+    time_seconds             TEXT    NOT NULL DEFAULT '',
+    sfd_mm                   TEXT    NOT NULL DEFAULT '',
+    film_type_qty            TEXT    NOT NULL DEFAULT '',
+    xray_serial_no           TEXT    NOT NULL DEFAULT '',
+    accepted_qty             REAL,
+    rework_qty               REAL,
+    reject_qty               REAL,
+    interpreter              TEXT    NOT NULL DEFAULT '',
+    radiographer             TEXT    NOT NULL DEFAULT '',
+    second_scrutineer        TEXT    NOT NULL DEFAULT '',
+    radiographic_procedure   TEXT    NOT NULL DEFAULT '',
+    acceptance_criteria      TEXT    NOT NULL DEFAULT '',
+    created_at               TEXT    NOT NULL DEFAULT (datetime('now')),
+    last_changed_at          TEXT,
+    last_changed_by          TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_xray_report_number ON xray_reports(report_number);
+CREATE INDEX IF NOT EXISTS idx_xray_part          ON xray_reports(part_no);
+CREATE INDEX IF NOT EXISTS idx_xray_customer      ON xray_reports(customer);
+CREATE INDEX IF NOT EXISTS idx_xray_date          ON xray_reports(report_date);
