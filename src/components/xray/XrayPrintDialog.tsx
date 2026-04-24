@@ -102,6 +102,9 @@ const PRINT_STYLES = `
     display:flex; align-items:center; justify-content:center;
     font-weight: 800; font-size: 18pt; letter-spacing: -1px;
   }
+  .rer-brand .logo-img {
+    max-width: 80px; max-height: 64px; object-fit: contain;
+  }
   .rer-brand .brand-name { font-weight: 800; font-size: 16pt; color: #1d8a3e; line-height: 1; }
   .rer-brand .brand-name small { display:block; font-weight: 600; font-size: 8pt; letter-spacing: 4px; color: #333; }
   .rer-addr { text-align: right; font-size: 8.5pt; line-height: 1.35; }
