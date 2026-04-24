@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const { query } = require("../db");
 const { writeAudit, actorFromRequest } = require("../audit");
 
@@ -10,71 +11,83 @@ function rowToContract(r) {
     contractNumber: r.contract_number,
     description: r.description,
     currency: r.currency,
-    createdAt: r.created_at ? r.created_at.toISOString() : new Date().toISOString(),
+    createdAt: r.created_at
+      ? new Date(r.created_at.replace(" ", "T") + "Z").toISOString()
+      : new Date().toISOString(),
   };
 }
 
-router.get("/", async (_req, res, next) => {
+router.get("/", (_req, res, next) => {
   try {
-    const { rows } = await query("SELECT * FROM contracts ORDER BY contract_number");
+    const { rows } = query("SELECT * FROM contracts ORDER BY contract_number");
     res.json(rows.map(rowToContract));
   } catch (e) {
     next(e);
   }
 });
 
-router.post("/", async (req, res, next) => {
+router.post("/", (req, res, next) => {
   try {
     const { contractNumber, description = "", currency = "USD" } = req.body || {};
-    const { rows } = await query(
-      `INSERT INTO contracts (contract_number, description, currency)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [contractNumber, description, currency],
+    const id = crypto.randomUUID();
+    query(
+      `INSERT INTO contracts (id, contract_number, description, currency)
+       VALUES (?, ?, ?, ?)`,
+      [id, contractNumber, description, currency],
     );
-    await writeAudit({
+    writeAudit({
       user: actorFromRequest(req),
       action: "contract.create",
       summary: `Created contract ${contractNumber} (${currency})`,
     });
+    const { rows } = query("SELECT * FROM contracts WHERE id = ?", [id]);
     res.status(201).json(rowToContract(rows[0]));
   } catch (e) {
     next(e);
   }
 });
 
-router.put("/:id", async (req, res, next) => {
+router.put("/:id", (req, res, next) => {
   try {
     const id = req.params.id;
     const patch = req.body || {};
-    const { rows } = await query(
+    const { rows: before } = query("SELECT * FROM contracts WHERE id = ?", [id]);
+    if (!before.length) return res.status(404).json({ error: "Not found" });
+    const b = before[0];
+    query(
       `UPDATE contracts SET
-         contract_number = COALESCE($1, contract_number),
-         description     = COALESCE($2, description),
-         currency        = COALESCE($3, currency)
-       WHERE id = $4
-       RETURNING *`,
+         contract_number = COALESCE(?, contract_number),
+         description     = COALESCE(?, description),
+         currency        = COALESCE(?, currency)
+       WHERE id = ?`,
       [patch.contractNumber || null, patch.description ?? null, patch.currency || null, id],
     );
-    if (!rows.length) return res.status(404).json({ error: "Not found" });
-    await writeAudit({
+    // If the contract number changed, propagate to prices (no FK in SQLite layout).
+    if (patch.contractNumber && patch.contractNumber !== b.contract_number) {
+      query("UPDATE prices SET contract_number = ? WHERE contract_number = ?", [
+        patch.contractNumber,
+        b.contract_number,
+      ]);
+    }
+    const { rows: out } = query("SELECT * FROM contracts WHERE id = ?", [id]);
+    writeAudit({
       user: actorFromRequest(req),
       action: "contract.update",
-      summary: `Updated contract ${rows[0].contract_number}`,
+      summary: `Updated contract ${out[0].contract_number}`,
       details: { patch },
     });
-    res.json(rowToContract(rows[0]));
+    res.json(rowToContract(out[0]));
   } catch (e) {
     next(e);
   }
 });
 
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", (req, res, next) => {
   try {
     const id = req.params.id;
-    const { rows: before } = await query("SELECT contract_number FROM contracts WHERE id = $1", [id]);
-    await query("DELETE FROM contracts WHERE id = $1", [id]);
-    await writeAudit({
+    const { rows: before } = query("SELECT contract_number FROM contracts WHERE id = ?", [id]);
+    query("DELETE FROM contracts WHERE id = ?", [id]);
+    writeAudit({
       user: actorFromRequest(req),
       action: "contract.delete",
       summary: `Deleted contract ${before[0]?.contract_number ?? id}`,

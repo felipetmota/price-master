@@ -8,28 +8,38 @@
  */
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
-const { pool, query } = require("../src/db");
+const crypto = require("crypto");
+const { query } = require("../src/db");
+const { ensureSchema } = require("../src/migrate");
 
 const USERS = [
-  { username: "admin", password: "admin", name: "Administrator", role: "admin" },
-  { username: "user",  password: "user",  name: "Standard User", role: "user"  },
+  { username: "admin", password: "admin", name: "Administrator", role: "admin", systems: [] },
+  { username: "user",  password: "user",  name: "Standard User", role: "user",  systems: ["price-management"] },
 ];
 
 (async () => {
+  ensureSchema();
   for (const u of USERS) {
     const hash = await bcrypt.hash(u.password, 10);
-    await query(
+    query(
       `INSERT INTO users (username, password_hash, name, role)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (username) DO UPDATE SET
-         password_hash = EXCLUDED.password_hash,
-         name = EXCLUDED.name,
-         role = EXCLUDED.role`,
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(username) DO UPDATE SET
+         password_hash = excluded.password_hash,
+         name = excluded.name,
+         role = excluded.role`,
       [u.username, hash, u.name, u.role],
     );
+    // Reset and rewrite the user's system grants (admin role implies all).
+    query("DELETE FROM user_systems WHERE username = ?", [u.username]);
+    for (const key of u.systems) {
+      query(
+        "INSERT OR IGNORE INTO user_systems (username, system_key) VALUES (?, ?)",
+        [u.username, key],
+      );
+    }
     console.log(`Seeded user: ${u.username} (${u.role})`);
   }
-  await pool.end();
   process.exit(0);
 })().catch((e) => {
   console.error(e);
