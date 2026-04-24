@@ -1,85 +1,55 @@
+## Problema
 
+Após importar 6 mil+ registros, a aplicação fica muito lenta porque:
 
-## Goal
-Prepare the codebase to connect to a SQL Server database in an on‑premise deployment, while keeping the current Lovable preview (browser‑only) functional.
+1. **DOM gigantesco**: cada linha renderiza ~10 células + tooltips Radix (que criam portals). Com 6k linhas → ~60k+ elementos DOM. O navegador trava em scroll, hover e re-render.
+2. **Filtros sem debounce**: cada tecla digitada em `FiltersBar` recalcula `useMemo` sobre os 6k registros e re-renderiza a tabela inteira.
+3. **Import em uma única operação**: `addPrices` faz um único `setPrices(cur => [...cur, ...rows])` com 6k itens, o que congela a UI por segundos.
+4. **Conversão de moeda repetida**: `convertCurrency()` é chamada inline em cada célula, em cada render.
 
-## Important context
-The current app runs **100% in the browser** (Vite + React, no backend). Browsers cannot connect directly to SQL Server — a TCP/TDS protocol is required, which only a server (Node.js, .NET, etc.) can speak. So "leaving the connection ready" means:
+## Solução
 
-1. Creating an **API layer** (Node.js/Express + `mssql` driver) that the React app will call via HTTP.
-2. Refactoring the frontend to consume that API instead of reading from the .xlsx file.
-3. Providing the **SQL Server schema** (CREATE TABLEs) matching the current data model.
-4. Documenting how to run everything on‑premise.
+### 1. Virtualização da tabela (impacto maior)
+- Adicionar `@tanstack/react-virtual` em `src/components/app/PricesTable.tsx`.
+- Renderizar apenas as linhas visíveis na viewport (~30-50 de cada vez) em vez de todas as 6k.
+- Manter o agrupamento atual por `partNumber + contract + supplier + dateFrom + dateTo`, virtualizando a lista achatada de "linhas a renderizar" (cabeçalho do grupo + filhos).
+- Manter `<thead>` fixo e altura de linha estimada (~44px) para o virtualizador.
 
-This API will **not run in the Lovable preview** (the sandbox does not host persistent backends). It is intended to be deployed on the on‑premise server alongside SQL Server. In Lovable, the app will continue to use the .xlsx file as a fallback when the API is not reachable.
+### 2. Debounce nos filtros de texto
+- Em `src/components/app/FiltersBar.tsx`, manter `value` local controlado e propagar para o pai com 250ms de debounce.
+- Os campos de data e número continuam imediatos (são selects/spinners curtos).
+- Resultado: digitar "ABC123" no Part Number deixa de disparar 6 re-cálculos sobre 6k linhas.
 
-## What will be delivered
+### 3. Importação em lotes
+- Em `src/contexts/DataContext.tsx`, no `addPrices`, quando `rows.length > 500`:
+  - Quebrar em lotes de 500.
+  - Aplicar com `setTimeout(..., 0)` entre lotes para liberar a thread principal.
+  - Mostrar progresso via `toast` ("Importando 1500/6000…").
+- Um único log de auditoria no final, não um por lote.
 
-### 1. SQL Server schema (`server/sql/schema.sql`)
-Tables matching `src/lib/types.ts`:
-- `Contracts` (Id, ContractNumber UNIQUE, Description, Currency, CreatedAt)
-- `Prices` (Id, ContractNumber FK, PartNumber, Supplier, DateFrom, DateTo, QuantityFrom, QuantityTo, UnitPrice, LotPrice, Currency, PreviousUnitPrice, PreviousLotPrice, PreviousDateFrom, PreviousDateTo, LastChangedAt, LastChangedBy)
-- `ExchangeRates` (Currency PK, Rate, IsBase, UpdatedAt)
-- `Users` (Username PK, PasswordHash, Name, Role)
-- `AuditLog` (Id, At, [User], Action, Summary, AffectedIds JSON, Details JSON)
+### 4. Substituir tooltips Radix por `title` nativo
+- Nas células de preço de `PricesTable.tsx`, trocar `<Tooltip>` (que monta portal por célula) pelo atributo HTML `title`.
+- Mantém a informação de moeda original no hover, sem custo de portal.
 
-Indexes on `ContractNumber`, `PartNumber`, `Supplier`, `DateFrom`/`DateTo`.
+### 5. Memoizar conversão de moeda
+- Pré-calcular preços convertidos uma vez por linha dentro do `useMemo` que monta `filtered`, em vez de chamar `convertCurrency()` em cada render de célula.
 
-### 2. Node.js API (`server/`)
-- `server/package.json` — `express`, `mssql`, `cors`, `dotenv`, `bcryptjs`
-- `server/.env.example` — `SQLSERVER_HOST`, `SQLSERVER_PORT=1433`, `SQLSERVER_DATABASE`, `SQLSERVER_USER`, `SQLSERVER_PASSWORD`, `SQLSERVER_ENCRYPT=false`, `SQLSERVER_TRUST_CERT=true`, `PORT=3001`
-- `server/src/db.ts` — connection pool using `mssql` with Windows/SQL auth support
-- `server/src/index.ts` — Express app with CORS
-- REST routes mirroring current operations:
-  - `GET/POST/PUT/DELETE /api/prices` + `POST /api/prices/bulk-update` + `POST /api/prices/:id/revert`
-  - `GET/POST/PUT/DELETE /api/contracts`
-  - `GET/PUT /api/rates`
-  - `GET /api/audit`
-  - `POST /api/auth/login`
-- `server/README.md` — install, configure, run as Windows Service (using `node-windows` or `nssm`)
+## Arquivos afetados
 
-### 3. Frontend integration
-- `src/lib/api.ts` — typed client (`fetch`) with base URL from `import.meta.env.VITE_API_URL`
-- `src/contexts/DataContext.tsx` — refactored: on mount, try `VITE_API_URL`; if reachable, load from API and route all mutations through it; if not, fall back to the existing .xlsx loader (keeps Lovable preview working)
-- `.env.example` at project root documenting `VITE_API_URL=http://localhost:3001`
+- `src/components/app/PricesTable.tsx` — virtualização + remover tooltips Radix
+- `src/components/app/FiltersBar.tsx` — debounce 250ms
+- `src/pages/Dashboard.tsx` — pré-computar valores convertidos no `useMemo`
+- `src/contexts/DataContext.tsx` — `addPrices` em lotes com progresso
+- `package.json` — adicionar `@tanstack/react-virtual`
 
-### 4. Documentation (`DEPLOYMENT.md`)
-- Prerequisites (SQL Server 2019+, Node.js 20+, IIS or `serve` for static files)
-- Steps: run `schema.sql` → configure `server/.env` → `npm install && npm start` in `server/` → `npm run build` in root → host `dist/` behind IIS/nginx → set `VITE_API_URL` before build
+## Resultado esperado
 
-## Technical details
-- **Driver**: `mssql` (pure JS, supports SQL auth and Windows auth via `msnodesqlv8`).
-- **Auth**: passwords hashed with `bcryptjs` on first migration; `/api/auth/login` returns user payload (no JWT yet — kept simple for on‑premise LAN use; can be added later).
-- **Currency conversion**: stays client‑side (already implemented in `src/lib/format.ts`).
-- **Audit log**: written server‑side on each mutation inside the same transaction.
-- **CORS**: enabled for the static site origin.
-- **No changes** to Tailwind, routing, or existing UI components.
+- Scroll fluido com 10k+ registros.
+- Filtros respondem sem travar a digitação.
+- Import de 6k linhas conclui em ~1-2s sem congelar a tela.
+- Uso de memória do DOM cai de ~60k elementos para ~500.
 
-## Out of scope (explicitly)
-- Running the API inside Lovable (not possible — Lovable hosts only the static frontend).
-- JWT/SSO/Active Directory integration (can be added in a follow‑up).
-- Automated migration of existing .xlsx data into SQL Server (a small import script can be added if requested).
+## Não incluído (pode ficar para depois, se quiser)
 
-## File map
-```text
-server/
-  package.json
-  .env.example
-  README.md
-  sql/
-    schema.sql
-  src/
-    db.ts
-    index.ts
-    routes/
-      prices.ts
-      contracts.ts
-      rates.ts
-      audit.ts
-      auth.ts
-src/
-  lib/api.ts                 (new)
-  contexts/DataContext.tsx   (modified — API with xlsx fallback)
-.env.example                 (new — VITE_API_URL)
-DEPLOYMENT.md                (new)
-```
+- Paginação no servidor — ainda não é necessário porque a virtualização resolve no cliente.
+- Índices/busca full-text — só faria sentido acima de ~50k registros.

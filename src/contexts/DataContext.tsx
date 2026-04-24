@@ -19,6 +19,7 @@ import {
 } from "@/lib/types";
 import { parseWorkbookFromUrl } from "@/lib/xlsx-io";
 import { api, apiEnabled, setApiActor } from "@/lib/api";
+import { toast } from "sonner";
 
 interface DataContextValue {
   prices: PriceRecord[];
@@ -208,14 +209,43 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
 
       addPrices: (rows, source = "manual") => {
-        setPrices((cur) => [...cur, ...rows]);
-        log(
-          source === "import" ? "price.import" : "price.create",
-          source === "import"
-            ? `Imported ${rows.length} record(s) from spreadsheet`
-            : `Created ${rows.length} record(s)`,
-          rows.map((r) => r.id),
-        );
+        const BATCH = 500;
+        // Small payloads: keep the original synchronous behavior.
+        if (rows.length <= BATCH) {
+          setPrices((cur) => [...cur, ...rows]);
+          log(
+            source === "import" ? "price.import" : "price.create",
+            source === "import"
+              ? `Imported ${rows.length} record(s) from spreadsheet`
+              : `Created ${rows.length} record(s)`,
+            rows.map((r) => r.id),
+          );
+          return;
+        }
+        // Large imports: chunk to keep the UI responsive and show progress.
+        const total = rows.length;
+        const toastId = toast.loading(`Importing 0 / ${total}…`);
+        let i = 0;
+        const pump = () => {
+          const slice = rows.slice(i, i + BATCH);
+          setPrices((cur) => [...cur, ...slice]);
+          i += slice.length;
+          if (i < total) {
+            toast.loading(`Importing ${i} / ${total}…`, { id: toastId });
+            // Yield to the browser so it can paint and stay responsive.
+            setTimeout(pump, 0);
+          } else {
+            toast.success(`Imported ${total} record(s).`, { id: toastId });
+            log(
+              source === "import" ? "price.import" : "price.create",
+              source === "import"
+                ? `Imported ${total} record(s) from spreadsheet`
+                : `Created ${total} record(s)`,
+              rows.map((r) => r.id),
+            );
+          }
+        };
+        pump();
       },
 
       updatePrice: (id, patch) => {
