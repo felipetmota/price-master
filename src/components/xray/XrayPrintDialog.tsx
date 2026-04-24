@@ -130,10 +130,11 @@ const PRINT_STYLES = `
   .rer-italic { font-style: italic; color: #555; font-size: 8pt; }
 `;
 
-const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary: string; logo: string | null }>(function PrintableReport(
-  { report, summary, logo },
+const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary: string; logo: string | null; address: string }>(function PrintableReport(
+  { report, summary, logo, address },
   ref,
 ) {
+  const addressLines = address.split("\n");
   return (
     <div ref={ref} className="rer-doc">
       <div className="rer-header">
@@ -143,20 +144,11 @@ const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary
           ) : (
             <div className="logo">N</div>
           )}
-          <div>
-            <div className="brand-name">Nasmyth<small>GROUP</small></div>
-          </div>
         </div>
         <div className="rer-addr">
-          <div className="h"><b>Technologies</b></div>
-          <div className="h"><i>Coventry</i></div>
-          <div>Nasmyth Technologies</div>
-          <div>Coventry Road, Exhall</div>
-          <div>Coventry CV7 9FT</div>
-          <div>United Kingdom</div>
-          <div style={{ marginTop: 4 }}>Tel: +44 (0) 2476 369400</div>
-          <div>Fax: +44 (0) 02476 368000</div>
-          <div className="h">www.nasmythgroup.com</div>
+          {addressLines.map((line, i) => (
+            <div key={i}>{line || "\u00A0"}</div>
+          ))}
         </div>
       </div>
 
