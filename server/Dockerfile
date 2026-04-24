@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# better-sqlite3 ships a prebuilt binary for most platforms, but on alpine
-# (musl) it needs to compile from source. Install the build toolchain.
-RUN apk add --no-cache python3 make g++
+# better-sqlite3 ships prebuilt binaries for glibc (Debian) on both amd64 and
+# arm64, so no build toolchain is needed here. wget is used by the healthcheck.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends wget ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 # Install production dependencies only
 COPY package.json ./
