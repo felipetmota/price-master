@@ -32,6 +32,7 @@ interface DataContextValue {
 
   setAll: (prices: PriceRecord[], users?: AppUser[]) => void;
   setUsers: (users: AppUser[]) => void;
+  reloadUsers: () => Promise<void>;
   addPrices: (rows: PriceRecord[], source?: "manual" | "import") => void;
   updatePrice: (id: string, patch: Partial<PriceRecord>) => void;
   deletePrices: (ids: string[]) => void;
@@ -186,6 +187,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
 
       setUsers: (u) => setUsers(u),
+
+      reloadUsers: async () => {
+        if (!apiEnabled()) return;
+        try {
+          const usrs = await api.listUsers();
+          setUsers(usrs);
+        } catch (e) {
+          console.warn("[DataContext] reloadUsers failed", e);
+        }
+      },
 
       addPrices: (rows, source = "manual") => {
         setPrices((cur) => [...cur, ...rows]);
