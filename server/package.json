@@ -1,21 +1,21 @@
 {
   "name": "price-management-api",
   "version": "1.0.0",
-  "description": "On-premise REST API for the Price Management app, backed by SQL Server.",
+  "description": "On-premise REST API for the Price Management app, backed by SQLite (better-sqlite3).",
   "private": true,
   "type": "commonjs",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "migrate:hash-passwords": "node scripts/hash-passwords.js"
+    "seed:users": "node scripts/hash-passwords.js"
   },
   "dependencies": {
+    "better-sqlite3": "^11.3.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "pg": "^8.13.0"
+    "express": "^4.19.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

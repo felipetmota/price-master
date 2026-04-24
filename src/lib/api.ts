@@ -92,4 +92,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
+
+  // Users + per-user system grants
+  listUsers: () => request<AppUser[]>("/api/users"),
+  setUserSystems: (username: string, systems: string[]) =>
+    request<{ ok: boolean }>(`/api/users/${encodeURIComponent(username)}/systems`, {
+      method: "PUT",
+      body: JSON.stringify({ systems }),
+    }),
 };

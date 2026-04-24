@@ -1,14 +1,16 @@
+const crypto = require("crypto");
 const { query } = require("./db");
 
 /**
  * Append a row to AuditLog.
  * @param {{ user?: string, action: string, summary: string, affectedIds?: string[], details?: object }} entry
  */
-async function writeAudit(entry) {
-  await query(
-    `INSERT INTO audit_log ("user", action, summary, affected_ids, details)
-     VALUES ($1, $2, $3, $4, $5)`,
+function writeAudit(entry) {
+  query(
+    `INSERT INTO audit_log (id, user, action, summary, affected_ids, details)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
+      crypto.randomUUID(),
       entry.user || "system",
       entry.action,
       entry.summary,

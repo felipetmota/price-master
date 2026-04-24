@@ -1,23 +1,18 @@
 /**
- * Boot-time migration: ensures tables exist by running schema.sql if the
- * `contracts` table is missing. Safe to call on every API start.
+ * Boot-time migration: applies schema.sql idempotently.
+ * All CREATE statements use `IF NOT EXISTS`, so it is safe to run on
+ * every API start.
  */
 const fs = require("fs");
 const path = require("path");
-const { pool, query } = require("./db");
+const { db } = require("./db");
 
-async function ensureSchema() {
-  const { rows } = await query(
-    "SELECT to_regclass('public.contracts') AS exists",
-  );
-  if (rows[0]?.exists) return false;
+function ensureSchema() {
   const schemaPath = path.join(__dirname, "..", "sql", "schema.sql");
   const sql = fs.readFileSync(schemaPath, "utf8");
-  console.log("[migrate] First run — applying schema.sql");
-  // pg can run multi-statement scripts in a single query() call.
-  await pool.query(sql);
-  console.log("[migrate] Schema applied");
-  return true;
+  // better-sqlite3 supports running multi-statement scripts via exec().
+  db.exec(sql);
+  console.log("[migrate] Schema ensured");
 }
 
 module.exports = { ensureSchema };

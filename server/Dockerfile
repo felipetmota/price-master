@@ -3,6 +3,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# better-sqlite3 ships a prebuilt binary for most platforms, but on alpine
+# (musl) it needs to compile from source. Install the build toolchain.
+RUN apk add --no-cache python3 make g++
+
 # Install production dependencies only
 COPY package.json ./
 RUN npm install --omit=dev && npm cache clean --force
@@ -11,6 +15,12 @@ RUN npm install --omit=dev && npm cache clean --force
 COPY src ./src
 COPY sql ./sql
 COPY scripts ./scripts
+
+# Persistent SQLite storage. Mount a volume here in docker-compose to keep
+# the database across container restarts.
+RUN mkdir -p /data
+ENV SQLITE_PATH=/data/prices.db
+VOLUME ["/data"]
 
 ENV NODE_ENV=production
 ENV PORT=3001
