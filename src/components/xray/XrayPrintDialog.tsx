@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { XrayReport } from "@/lib/types";
 import { Printer } from "lucide-react";
+import { useBrandLogo } from "@/hooks/useBrandLogo";
 
 interface Props {
   open: boolean;
@@ -21,6 +22,7 @@ interface Props {
 export default function XrayPrintDialog({ open, onOpenChange, report }: Props) {
   const [summary, setSummary] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
+  const { logo } = useBrandLogo();
 
   useEffect(() => {
     if (open) setSummary("");
@@ -64,7 +66,7 @@ export default function XrayPrintDialog({ open, onOpenChange, report }: Props) {
           <p className="text-xs text-muted-foreground mb-2">Preview</p>
           <div className="bg-muted/40 p-4 rounded-md flex justify-center overflow-auto">
             <style>{PRINT_STYLES}</style>
-            <PrintableReport ref={printRef} report={report} summary={summary} />
+            <PrintableReport ref={printRef} report={report} summary={summary} logo={logo} />
           </div>
         </div>
 
@@ -100,6 +102,9 @@ const PRINT_STYLES = `
     display:flex; align-items:center; justify-content:center;
     font-weight: 800; font-size: 18pt; letter-spacing: -1px;
   }
+  .rer-brand .logo-img {
+    max-width: 80px; max-height: 64px; object-fit: contain;
+  }
   .rer-brand .brand-name { font-weight: 800; font-size: 16pt; color: #1d8a3e; line-height: 1; }
   .rer-brand .brand-name small { display:block; font-weight: 600; font-size: 8pt; letter-spacing: 4px; color: #333; }
   .rer-addr { text-align: right; font-size: 8.5pt; line-height: 1.35; }
@@ -123,15 +128,19 @@ const PRINT_STYLES = `
   .rer-italic { font-style: italic; color: #555; font-size: 8pt; }
 `;
 
-const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary: string }>(function PrintableReport(
-  { report, summary },
+const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary: string; logo: string | null }>(function PrintableReport(
+  { report, summary, logo },
   ref,
 ) {
   return (
     <div ref={ref} className="rer-doc">
       <div className="rer-header">
         <div className="rer-brand">
-          <div className="logo">N</div>
+          {logo ? (
+            <img src={logo} alt="Logo" className="logo-img" />
+          ) : (
+            <div className="logo">N</div>
+          )}
           <div>
             <div className="brand-name">Nasmyth<small>GROUP</small></div>
           </div>
