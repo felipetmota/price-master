@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, LockKeyhole } from "lucide-react";
+import { Loader2, LockKeyhole, LayoutGrid, FileSpreadsheet, ScanLine } from "lucide-react";
+import getMySiteLogo from "@/assets/getmysite-logo.png";
 
 export default function Login() {
   const { login } = useAuth();
@@ -37,22 +38,36 @@ export default function Login() {
       <section className="hidden lg:flex flex-col justify-between p-12 bg-primary text-primary-foreground">
         <div className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="size-2 rounded-full bg-accent" />
-          Price Manager
+          Systems Hub
         </div>
         <div className="space-y-6 max-w-md">
           <h1 className="text-4xl font-semibold tracking-tight leading-tight">
-            Contract price management, without the noise.
+            One sign-in. Every system you need.
           </h1>
           <p className="text-primary-foreground/70 leading-relaxed">
-            Register price breaks, import spreadsheets and apply bulk updates by item or supplier — all with control and traceability.
+            Access all your internal tools from a single hub — price management, X-ray reports and more, with role-based access and full traceability.
           </p>
-          <ul className="space-y-2 text-sm text-primary-foreground/60">
-            <li>— Direct Excel import</li>
-            <li>— Bulk edit by percentage or fixed value</li>
-            <li>— Advanced filters on every field</li>
+          <ul className="space-y-3 text-sm text-primary-foreground/70">
+            <li className="flex items-center gap-2.5">
+              <LayoutGrid className="size-4 text-accent" /> Unified systems hub
+            </li>
+            <li className="flex items-center gap-2.5">
+              <FileSpreadsheet className="size-4 text-accent" /> Contract price management
+            </li>
+            <li className="flex items-center gap-2.5">
+              <ScanLine className="size-4 text-accent" /> X-ray inspection reports
+            </li>
           </ul>
         </div>
-        <p className="text-xs text-primary-foreground/40">Test environment · in-memory data</p>
+        <a
+          href="https://getmysite.co.uk/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-xs text-primary-foreground/50 hover:text-primary-foreground/80 transition-colors w-fit"
+        >
+          <img src={getMySiteLogo} alt="GetMySite" className="size-5 rounded-sm bg-white/95 p-0.5" />
+          Developed by <span className="font-medium text-primary-foreground/80">GetMySite</span>
+        </a>
       </section>
 
       <section className="flex items-center justify-center p-6 sm:p-12">
@@ -63,7 +78,7 @@ export default function Login() {
             </div>
             <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
             <p className="text-sm text-muted-foreground">
-              Sign in with the test credentials defined in the <span className="font-mono">users</span> sheet.
+              Sign in to access your systems hub. Your available tools depend on the permissions assigned to your account.
             </p>
           </header>
 
@@ -81,33 +96,17 @@ export default function Login() {
             </Button>
           </form>
 
-          {users.length > 0 && (
-            <div className="rounded-lg border bg-card p-4 space-y-3">
-              <div>
-                <p className="text-sm font-medium text-foreground">Test credentials</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Click an option below to auto-fill, then click <span className="font-medium text-foreground">Sign in</span>.
-                </p>
-              </div>
-              <div className="grid gap-2">
-                {users.slice(0, 2).map((u) => (
-                  <button
-                    key={u.username}
-                    type="button"
-                    onClick={() => fillCredentials(u.username, u.password)}
-                    className="flex items-center justify-between rounded-md border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="font-mono text-xs text-foreground">
-                      {u.username} / {u.password}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      {u.role}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <p className="text-center text-xs text-muted-foreground lg:hidden">
+            Developed by{" "}
+            <a
+              href="https://getmysite.co.uk/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground hover:text-accent transition-colors"
+            >
+              GetMySite
+            </a>
+          </p>
         </div>
       </section>
     </main>
