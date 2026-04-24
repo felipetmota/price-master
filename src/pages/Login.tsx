@@ -10,7 +10,7 @@ import getMySiteLogo from "@/assets/getmysite-logo.png";
 
 export default function Login() {
   const { login } = useAuth();
-  const { loading, users } = useData();
+  const { loading } = useData();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -25,12 +25,6 @@ export default function Login() {
     } else {
       toast.error(res.error);
     }
-  };
-
-  const fillCredentials = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
-    toast.message("Credentials filled — click Sign in.");
   };
 
   return (
