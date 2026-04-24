@@ -69,6 +69,8 @@ export interface AppUser {
   password: string;
   name: string;
   role: string;
+  /** Optional contact email. Persisted server-side; never returned in login response. */
+  email?: string;
   /**
    * Keys of systems (from src/lib/systems.ts) the user is allowed to open.
    * Admins implicitly have access to all systems regardless of this list.
