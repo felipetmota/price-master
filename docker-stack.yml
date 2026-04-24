@@ -43,7 +43,7 @@ services:
         - "traefik.http.routers.price-api.rule=Host(`${API_HOST}`)"
         - "traefik.http.routers.price-api.entrypoints=websecure"
         - "traefik.http.routers.price-api.tls=true"
-        - "traefik.http.routers.price-api.tls.certresolver=le"
+        - "traefik.http.routers.price-api.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.price-api.loadbalancer.server.port=3001"
 
   web:
@@ -64,7 +64,7 @@ services:
         - "traefik.http.routers.price-web.rule=Host(`${APP_HOST}`)"
         - "traefik.http.routers.price-web.entrypoints=websecure"
         - "traefik.http.routers.price-web.tls=true"
-        - "traefik.http.routers.price-web.tls.certresolver=le"
+        - "traefik.http.routers.price-web.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.price-web.loadbalancer.server.port=80"
 
 volumes:
