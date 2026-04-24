@@ -18,7 +18,9 @@ import { Badge } from "@/components/ui/badge";
 import { Contract, Currency, CURRENCIES, ExchangeRates, PriceRecord } from "@/lib/types";
 import { fmtDateTime, fmtMoney, fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { ArrowLeftRight, FileText, History, Pencil, Plus, RefreshCw, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeftRight, FileText, History, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { SYSTEMS } from "@/lib/systems";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +55,9 @@ export default function Admin() {
             <TabsTrigger value="rates">
               <ArrowLeftRight className="size-4" /> Exchange Rates
             </TabsTrigger>
+            <TabsTrigger value="access">
+              <KeyRound className="size-4" /> Access
+            </TabsTrigger>
             <TabsTrigger value="log">
               <History className="size-4" /> Activity Log
             </TabsTrigger>
@@ -66,6 +71,9 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="rates">
             <RatesTab />
+          </TabsContent>
+          <TabsContent value="access">
+            <AccessTab />
           </TabsContent>
           <TabsContent value="log">
             <ActivityLogTab />
@@ -495,6 +503,90 @@ function PriceHistoryTab() {
                   ) : null}
                 </tr>
               ));
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Access (per-user system grants) ---------------- */
+function AccessTab() {
+  const { users } = useData();
+  const { setUserSystems } = useAuth();
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Toggle which systems each user can open from the portal. Admins always
+        have access to every system regardless of these checkboxes.
+      </p>
+
+      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/60 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2.5 text-left font-medium">User</th>
+              <th className="px-3 py-2.5 text-left font-medium">Role</th>
+              {SYSTEMS.map((s) => (
+                <th key={s.key} className="px-3 py-2.5 text-center font-medium">
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span>{s.name}</span>
+                    {s.status === "coming-soon" && (
+                      <span className="text-[9px] font-normal normal-case text-muted-foreground">
+                        coming soon
+                      </span>
+                    )}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {users.length === 0 && (
+              <tr>
+                <td colSpan={2 + SYSTEMS.length} className="px-3 py-8 text-center text-muted-foreground">
+                  No users.
+                </td>
+              </tr>
+            )}
+            {users.map((u) => {
+              const isAdminUser = (u.role ?? "").toLowerCase() === "admin";
+              const granted = new Set(u.systems ?? []);
+              return (
+                <tr key={u.username} className="border-t hover:bg-secondary/40">
+                  <td className="px-3 py-2.5">
+                    <div className="font-medium">{u.name}</div>
+                    <div className="font-mono text-xs text-muted-foreground">{u.username}</div>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Badge variant={isAdminUser ? "default" : "secondary"} className="font-mono text-[10px]">
+                      {u.role}
+                    </Badge>
+                  </td>
+                  {SYSTEMS.map((s) => {
+                    const checked = isAdminUser || granted.has(s.key);
+                    return (
+                      <td key={s.key} className="px-3 py-2.5 text-center">
+                        <Checkbox
+                          checked={checked}
+                          disabled={isAdminUser}
+                          onCheckedChange={(v) => {
+                            const next = new Set(u.systems ?? []);
+                            if (v) next.add(s.key);
+                            else next.delete(s.key);
+                            setUserSystems(u.username, Array.from(next));
+                            toast.success(
+                              `${v ? "Granted" : "Revoked"} ${s.name} for ${u.username}.`,
+                            );
+                          }}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
             })}
           </tbody>
         </table>
