@@ -69,6 +69,11 @@ export interface AppUser {
   password: string;
   name: string;
   role: string;
+  /**
+   * Keys of systems (from src/lib/systems.ts) the user is allowed to open.
+   * Admins implicitly have access to all systems regardless of this list.
+   */
+  systems?: string[];
 }
 
 export interface PriceFilters {
