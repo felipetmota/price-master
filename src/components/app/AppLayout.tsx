@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { LogOut, Shield, Table2 } from "lucide-react";
+import { LayoutGrid, LogOut, Shield, Table2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -19,6 +19,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <NavLink
                 to="/"
                 end
+                className={({ isActive }) =>
+                  `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${
+                    isActive ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                  }`
+                }
+              >
+                <LayoutGrid className="size-3.5" /> Portal
+              </NavLink>
+              <NavLink
+                to="/prices"
                 className={({ isActive }) =>
                   `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${
                     isActive ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
