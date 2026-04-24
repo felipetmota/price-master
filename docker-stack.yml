@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------
+# Docker SWARM stack (API + Frontend) for Portainer.
+#
+# This file is for Portainer endpoints running in Docker Swarm mode.
+# Images are pulled from GitHub Container Registry (GHCR), built
+# automatically by .github/workflows/build-images.yml on every push
+# to main.
+#
+# Required environment variables in Portainer:
+#   - API_HOST       e.g. price-api.webtorres.com.br
+#   - APP_HOST       e.g. prices.webtorres.com.br
+#   - CORS_ORIGIN    e.g. https://prices.webtorres.com.br
+#   - IMAGE_TAG      (optional) defaults to "latest"
+#
+# After first deploy, seed users by exec'ing into the API task:
+#   docker exec -it $(docker ps -qf name=price-master_api) \
+#     node scripts/hash-passwords.js
+# ---------------------------------------------------------------------
+version: "3.8"
+
+services:
+  api:
+    image: ghcr.io/felipetmota/price-master-api:${IMAGE_TAG:-latest}
+    environment:
+      SQLITE_PATH: /data/prices.db
+      PORT: 3001
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    volumes:
+      - price_data:/data
+    networks:
+      - traefik
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        order: start-first
+        failure_action: rollback
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik"
+        - "traefik.http.routers.price-api.rule=Host(`${API_HOST}`)"
+        - "traefik.http.routers.price-api.entrypoints=websecure"
+        - "traefik.http.routers.price-api.tls=true"
+        - "traefik.http.routers.price-api.tls.certresolver=le"
+        - "traefik.http.services.price-api.loadbalancer.server.port=3001"
+
+  web:
+    image: ghcr.io/felipetmota/price-master-web:${IMAGE_TAG:-latest}
+    networks:
+      - traefik
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        order: start-first
+        failure_action: rollback
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik"
+        - "traefik.http.routers.price-web.rule=Host(`${APP_HOST}`)"
+        - "traefik.http.routers.price-web.entrypoints=websecure"
+        - "traefik.http.routers.price-web.tls=true"
+        - "traefik.http.routers.price-web.tls.certresolver=le"
+        - "traefik.http.services.price-web.loadbalancer.server.port=80"
+
+volumes:
+  price_data:
+    # Persistent SQLite storage on the swarm node.
+
+networks:
+  traefik:
+    external: true
+    name: traefik
