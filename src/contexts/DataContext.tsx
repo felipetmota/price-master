@@ -63,6 +63,15 @@ const defaultRates: ExchangeRates = {
   updatedAt: new Date().toISOString(),
 };
 
+/**
+ * Built-in demo users used only in browser-only fallback mode (no API).
+ * In production the API + SQLite owns authentication; these are never used.
+ */
+const fallbackUsers: AppUser[] = [
+  { username: "admin", password: "admin123", name: "Administrator", role: "admin", systems: ["price-management"] },
+  { username: "user",  password: "user123",  name: "Standard User", role: "user",  systems: ["price-management"] },
+];
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [prices, setPrices] = useState<PriceRecord[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -152,7 +161,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         contractsFinal = Array.from(seen.values());
       }
       setPrices(enriched);
-      setUsers(data.users);
+      setUsers(data.users.length ? data.users : fallbackUsers);
       setContracts(contractsFinal);
       if (data.rates) setRatesState(data.rates);
       useApi.current = false;
