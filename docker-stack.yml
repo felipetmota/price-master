@@ -28,7 +28,7 @@ services:
     volumes:
       - price_data:/data
     networks:
-      - traefik
+      - ftech_net
     deploy:
       replicas: 1
       restart_policy:
@@ -39,7 +39,7 @@ services:
         failure_action: rollback
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik"
+        - "traefik.docker.network=ftech_net"
         - "traefik.http.routers.price-api.rule=Host(`${API_HOST}`)"
         - "traefik.http.routers.price-api.entrypoints=websecure"
         - "traefik.http.routers.price-api.tls=true"
@@ -49,7 +49,7 @@ services:
   web:
     image: ghcr.io/felipetmota/price-master-web:${IMAGE_TAG:-latest}
     networks:
-      - traefik
+      - ftech_net
     deploy:
       replicas: 1
       restart_policy:
@@ -60,7 +60,7 @@ services:
         failure_action: rollback
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik"
+        - "traefik.docker.network=ftech_net"
         - "traefik.http.routers.price-web.rule=Host(`${APP_HOST}`)"
         - "traefik.http.routers.price-web.entrypoints=websecure"
         - "traefik.http.routers.price-web.tls=true"
@@ -72,6 +72,6 @@ volumes:
     # Persistent SQLite storage on the swarm node.
 
 networks:
-  traefik:
+  ftech_net:
     external: true
-    name: traefik
+    name: ftech_net
