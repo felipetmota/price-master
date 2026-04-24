@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useRef, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -66,6 +66,9 @@ export default function XrayPrintDialog({ open, onOpenChange, report }: Props) {
       <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-5">
           <DialogTitle>Print report — {report.reportNumber}</DialogTitle>
+          <DialogDescription>
+            Review the report preview and print with the current branding settings.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 space-y-2">
@@ -85,7 +88,9 @@ export default function XrayPrintDialog({ open, onOpenChange, report }: Props) {
           <p className="text-xs text-muted-foreground mb-2">Preview</p>
           <div className="bg-muted/40 p-4 rounded-md flex justify-center overflow-auto">
             <style>{PRINT_STYLES}</style>
-            <PrintableReport ref={printRef} report={report} summary={summary} logo={logo} address={address} />
+            <div ref={printRef}>
+              <PrintableReport report={report} summary={summary} logo={logo} address={address} />
+            </div>
           </div>
         </div>
 
