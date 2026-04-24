@@ -18,9 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Contract, Currency, CURRENCIES, ExchangeRates, PriceRecord } from "@/lib/types";
 import { fmtDateTime, fmtMoney, fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { ArrowLeftRight, FileText, History, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeftRight, FileText, History, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2, Users as UsersIcon, Lock } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SYSTEMS } from "@/lib/systems";
+import { api, apiEnabled } from "@/lib/api";
+import { AppUser } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +57,9 @@ export default function Admin() {
             <TabsTrigger value="rates">
               <ArrowLeftRight className="size-4" /> Exchange Rates
             </TabsTrigger>
+            <TabsTrigger value="users">
+              <UsersIcon className="size-4" /> Users
+            </TabsTrigger>
             <TabsTrigger value="access">
               <KeyRound className="size-4" /> Access
             </TabsTrigger>
@@ -71,6 +76,9 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="rates">
             <RatesTab />
+          </TabsContent>
+          <TabsContent value="users">
+            <UsersTab />
           </TabsContent>
           <TabsContent value="access">
             <AccessTab />
