@@ -99,24 +99,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (apiEnabled()) {
       try {
         await api.health();
-        const [pxs, ctrs, rts, aud] = await Promise.all([
+        const [pxs, ctrs, rts, aud, usrs] = await Promise.all([
           api.listPrices(),
           api.listContracts(),
           api.getRates().catch(() => defaultRates),
           api.listAudit().catch(() => [] as AuditLogEntry[]),
+          api.listUsers().catch(() => [] as AppUser[]),
         ]);
         setPrices(pxs);
         setContracts(ctrs);
         setRatesState(rts);
         setAuditLog(aud);
-        // Users still come from the xlsx template for now (auth seeding is
-        // handled server-side via the bcrypt seed script).
-        try {
-          const data = await parseWorkbookFromUrl("/templates/prices_template.xlsx");
-          setUsers(data.users);
-        } catch {
-          setUsers([]);
-        }
+        // The API never returns password hashes, so AppUser.password is "".
+        // Authentication itself goes through api.login() in AuthContext.
+        setUsers(usrs);
         useApi.current = true;
         setLoading(false);
         return;
