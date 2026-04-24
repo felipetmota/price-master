@@ -4,6 +4,7 @@ import {
   Contract,
   ExchangeRates,
   PriceRecord,
+  XrayReport,
 } from "./types";
 
 /**
@@ -128,5 +129,23 @@ export const api = {
   deleteUser: (username: string) =>
     request<{ ok: boolean }>(`/api/users/${encodeURIComponent(username)}`, {
       method: "DELETE",
+    }),
+
+  // X-ray Reports
+  listXrayReports: () => request<XrayReport[]>("/api/xray-reports"),
+  createXrayReports: (rows: Partial<XrayReport>[], source: "manual" | "import" = "manual") =>
+    request<XrayReport[]>(`/api/xray-reports?source=${source}`, {
+      method: "POST",
+      body: JSON.stringify(rows),
+    }),
+  updateXrayReport: (id: string, patch: Partial<XrayReport>) =>
+    request<XrayReport>(`/api/xray-reports/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }),
+  deleteXrayReports: (ids: string[]) =>
+    request<{ deleted: number }>("/api/xray-reports", {
+      method: "DELETE",
+      body: JSON.stringify({ ids }),
     }),
 };
