@@ -1041,3 +1041,90 @@ function ResetPasswordDialog({
     </Dialog>
   );
 }
+
+/* ---------------- Branding ---------------- */
+function BrandingTab() {
+  const { logo, setLogo } = useBrandLogo();
+  const [busy, setBusy] = useState(false);
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Select an image file (PNG, JPG, SVG…).");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image too large. Max 2 MB.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setLogo(dataUrl);
+      toast.success("Logo updated.");
+    } catch {
+      toast.error("Could not read the file.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border bg-card p-6 space-y-5 shadow-sm">
+        <div>
+          <h2 className="text-base font-semibold">Report logo</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            This logo appears on the printed Radiographic Examination Report. Recommended: a square or wide PNG with transparent background, up to 2&nbsp;MB.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div className="size-28 rounded-lg border bg-secondary/40 flex items-center justify-center overflow-hidden">
+            {logo ? (
+              <img src={logo} alt="Current logo" className="max-w-full max-h-full object-contain" />
+            ) : (
+              <span className="text-xs text-muted-foreground text-center px-2">No logo<br/>uploaded</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="logo-input" className="sr-only">Upload logo</Label>
+            <div className="flex gap-2">
+              <Button asChild size="sm" disabled={busy}>
+                <label htmlFor="logo-input" className="cursor-pointer">
+                  <Upload className="size-4" /> {logo ? "Replace logo" : "Upload logo"}
+                </label>
+              </Button>
+              {logo && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setLogo(null); toast.success("Logo removed."); }}
+                  disabled={busy}
+                >
+                  <Trash2 className="size-4" /> Remove
+                </Button>
+              )}
+            </div>
+            <input
+              id="logo-input"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPick}
+            />
+            <p className="text-xs text-muted-foreground">PNG, JPG or SVG · max 2 MB</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card p-4 text-xs text-muted-foreground">
+        <p className="font-medium text-foreground mb-1">Where it shows</p>
+        <p>The logo replaces the green “N” circle in the top-left of the printed report header. It is stored locally in this browser.</p>
+      </div>
+    </div>
+  );
+}
