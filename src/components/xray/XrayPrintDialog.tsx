@@ -168,7 +168,7 @@ const PRINT_STYLES = `
     font-weight: 800; font-size: 18pt; letter-spacing: -1px;
   }
   .rer-brand .logo-img {
-    max-width: 80px; max-height: 64px; object-fit: contain;
+    max-width: 160px; max-height: 110px; object-fit: contain;
   }
   .rer-brand .brand-name { font-weight: 800; font-size: 16pt; color: #1d8a3e; line-height: 1; }
   .rer-brand .brand-name small { display:block; font-weight: 600; font-size: 8pt; letter-spacing: 4px; color: #333; }
