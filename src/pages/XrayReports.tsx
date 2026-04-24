@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { fmtXrayDate } from "@/lib/format";
 
 export default function XrayReportsPage() {
   const { reports, loading, reload, create, update, remove, usingApi } = useXrayReports();
@@ -113,7 +114,7 @@ export default function XrayReportsPage() {
                   filtered.map((r) => (
                     <tr key={r.id} className="border-t hover:bg-secondary/40 transition-colors">
                       <td className="px-3 py-2 font-mono text-xs font-semibold">{r.reportNumber}</td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground num">{r.date}</td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground num">{fmtXrayDate(r.date)}</td>
                       <td className="px-3 py-2 font-medium">{r.partNo}</td>
                       <td className="px-3 py-2 text-muted-foreground truncate max-w-[200px]" title={r.description}>{r.description}</td>
                       <td className="px-3 py-2">{r.customer}</td>
