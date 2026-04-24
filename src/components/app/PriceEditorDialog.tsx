@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Currency, PriceRecord, QTY_MAX } from "@/lib/types";
 import { useData, newId } from "@/contexts/DataContext";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
+import ComboInput from "@/components/app/ComboInput";
 
 interface Props {
   open: boolean;
@@ -30,7 +30,8 @@ type CommonDraft = {
 const emptyCommon: CommonDraft = { contractNumber: "", partNumber: "", supplier: "", dateFrom: "", dateTo: "" };
 
 export default function PriceEditorDialog({ open, onOpenChange, editing }: Props) {
-  const { addPrices, updatePrice, contracts } = useData();
+  const { addPrices, updatePrice, contracts, partNumbers, suppliers } = useData();
+  const contractOptions = useMemo(() => contracts.map((c) => c.contractNumber).sort(), [contracts]);
   const [mode, setMode] = useState<"unit" | "lot">("unit");
   const [common, setCommon] = useState<CommonDraft>(emptyCommon);
   const [breaks, setBreaks] = useState<DraftBreak[]>([{ quantityFrom: "1", quantityTo: String(QTY_MAX), unitPrice: "" }]);
@@ -151,24 +152,31 @@ export default function PriceEditorDialog({ open, onOpenChange, editing }: Props
               Contract Number
               {selectedContract && <Badge variant="secondary" className="font-mono text-[10px]">{currency}</Badge>}
             </Label>
-            {contracts.length > 0 ? (
-              <Select value={common.contractNumber} onValueChange={(v) => setCommon({ ...common, contractNumber: v })}>
-                <SelectTrigger><SelectValue placeholder="Select a contract" /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {contracts.map((c) => (
-                    <SelectItem key={c.id} value={c.contractNumber}>
-                      <span className="font-mono">{c.contractNumber}</span>
-                      <span className="text-muted-foreground"> · {c.currency}{c.description ? ` · ${c.description}` : ""}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input value={common.contractNumber} onChange={(e) => setCommon({ ...common, contractNumber: e.target.value })} placeholder="No contracts — create in Admin → Contracts" />
-            )}
+            <ComboInput
+              value={common.contractNumber}
+              onChange={(v) => setCommon({ ...common, contractNumber: v })}
+              options={contractOptions}
+              allowFreeText={false}
+              placeholder={contracts.length === 0 ? "No contracts — create in Admin → Contracts" : "Search a contract"}
+              disabled={contracts.length === 0}
+            />
           </div>
-          <Field label="Part Number"><Input value={common.partNumber} onChange={(e) => setCommon({ ...common, partNumber: e.target.value })} /></Field>
-          <Field label="Supplier"><Input value={common.supplier} onChange={(e) => setCommon({ ...common, supplier: e.target.value })} /></Field>
+          <Field label="Part Number">
+            <ComboInput
+              value={common.partNumber}
+              onChange={(v) => setCommon({ ...common, partNumber: v })}
+              options={partNumbers}
+              placeholder="Type or pick existing"
+            />
+          </Field>
+          <Field label="Supplier">
+            <ComboInput
+              value={common.supplier}
+              onChange={(v) => setCommon({ ...common, supplier: v })}
+              options={suppliers}
+              placeholder="Type or pick existing"
+            />
+          </Field>
           <Field label="Date From"><Input type="date" value={common.dateFrom} onChange={(e) => setCommon({ ...common, dateFrom: e.target.value })} /></Field>
           <Field label="Date To"><Input type="date" value={common.dateTo} onChange={(e) => setCommon({ ...common, dateTo: e.target.value })} /></Field>
         </div>

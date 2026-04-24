@@ -29,6 +29,11 @@ interface DataContextValue {
   auditLog: AuditLogEntry[];
   loading: boolean;
 
+  /** Distinct, sorted lookup lists derived from current data. */
+  partNumbers: string[];
+  suppliers: string[];
+  contractNumbers: string[];
+
   setActor: (username: string | null) => void;
 
   setAll: (prices: PriceRecord[], users?: AppUser[]) => void;
@@ -177,7 +182,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     load();
   }, [load]);
 
-  const value = useMemo<DataContextValue>(
+  const value = useMemo<Omit<DataContextValue, "partNumbers" | "suppliers" | "contractNumbers">>(
     () => ({
       prices,
       users,
@@ -378,7 +383,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [prices, users, contracts, rates, auditLog, loading, load, log],
   );
 
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+  const partNumbers = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of prices) if (p.partNumber) s.add(p.partNumber);
+    return Array.from(s).sort();
+  }, [prices]);
+
+  const suppliers = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of prices) if (p.supplier) s.add(p.supplier);
+    return Array.from(s).sort();
+  }, [prices]);
+
+  const contractNumbers = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of contracts) if (c.contractNumber) s.add(c.contractNumber);
+    for (const p of prices) if (p.contractNumber) s.add(p.contractNumber);
+    return Array.from(s).sort();
+  }, [contracts, prices]);
+
+  const fullValue = useMemo<DataContextValue>(
+    () => ({ ...value, partNumbers, suppliers, contractNumbers }),
+    [value, partNumbers, suppliers, contractNumbers],
+  );
+
+  return <DataContext.Provider value={fullValue}>{children}</DataContext.Provider>;
 }
 
 export function useData() {

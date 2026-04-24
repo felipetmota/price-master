@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useData } from "@/contexts/DataContext";
 import { toast } from "sonner";
+import ComboInput from "@/components/app/ComboInput";
 
 interface Props { open: boolean; onOpenChange: (v: boolean) => void; }
 
@@ -119,12 +120,13 @@ export default function BulkUpdateDialog({ open, onOpenChange }: Props) {
 
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Target</Label>
-            <Select value={target} onValueChange={setTarget}>
-              <SelectTrigger><SelectValue placeholder={selector === "part" ? "Select a Part Number" : "Select a Supplier"} /></SelectTrigger>
-              <SelectContent className="max-h-72">
-                {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <ComboInput
+              value={target}
+              onChange={setTarget}
+              options={options}
+              allowFreeText={false}
+              placeholder={selector === "part" ? "Search a Part Number" : "Search a Supplier"}
+            />
           </div>
 
           {/* Prices section */}
