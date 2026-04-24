@@ -182,7 +182,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     load();
   }, [load]);
 
-  const value = useMemo<DataContextValue>(
+  const value = useMemo<Omit<DataContextValue, "partNumbers" | "suppliers" | "contractNumbers">>(
     () => ({
       prices,
       users,
