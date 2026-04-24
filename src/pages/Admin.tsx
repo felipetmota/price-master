@@ -1127,6 +1127,52 @@ function BrandingTab() {
         <p className="font-medium text-foreground mb-1">Where it shows</p>
         <p>The logo replaces the green “N” circle in the top-left of the printed report header. It is stored locally in this browser.</p>
       </div>
+
+      <BrandAddressCard />
+    </div>
+  );
+}
+
+function BrandAddressCard() {
+  const { address, setAddress, resetAddress } = useBrandAddress();
+  const [draft, setDraft] = useState(address);
+
+  useEffect(() => { setDraft(address); }, [address]);
+
+  const dirty = draft !== address;
+
+  return (
+    <div className="rounded-xl border bg-card p-6 space-y-4 shadow-sm">
+      <div>
+        <h2 className="text-base font-semibold">Report header text</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Multi-line address shown on the top-right of the printed Radiographic Examination Report. One line per row.
+        </p>
+      </div>
+
+      <Textarea
+        rows={10}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        className="font-mono text-sm"
+      />
+
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => { resetAddress(); toast.success("Header text reset to default."); }}
+        >
+          <RefreshCw className="size-4" /> Reset to default
+        </Button>
+        <Button
+          size="sm"
+          disabled={!dirty}
+          onClick={() => { setAddress(draft); toast.success("Header text saved."); }}
+        >
+          Save changes
+        </Button>
+      </div>
     </div>
   );
 }
