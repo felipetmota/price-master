@@ -105,3 +105,53 @@ export const emptyFilters: PriceFilters = {
   lotPriceMin: "",
   lotPriceMax: "",
 };
+
+/**
+ * Radiographic Examination Report (X-ray Records) — single record.
+ * All free-text fields are kept as strings (the source spreadsheet mixes
+ * numbers and text in the same cells, e.g. "10 x 9x12").
+ */
+export interface XrayReport {
+  id: string;
+  reportNumber: string;
+  partNo: string;
+  description: string;
+  quantity: string;
+  date: string; // ISO yyyy-mm-dd
+  operationNo: string;
+  planningCardNo: string;
+  customer: string;
+  xrayTechniqueNo: string;
+  issue: string;
+  kv: string;
+  ma: string;
+  timeSeconds: string;
+  sfdMm: string;
+  filmTypeQty: string;
+  xraySerialNo: string;
+  acceptedQty: number | null;
+  reworkQty: number | null;
+  rejectQty: number | null;
+  interpreter: string;
+  radiographer: string;
+  secondScrutineer: string;
+  radiographicProcedure: string;
+  acceptanceCriteria: string;
+  createdAt?: string;
+  lastChangedAt?: string;
+  lastChangedBy?: string;
+}
+
+export interface XrayFilters {
+  q: string; // free-text on report number / part / description / customer
+  customer: string;
+  dateFrom: string;
+  dateTo: string;
+}
+
+export const emptyXrayFilters: XrayFilters = {
+  q: "",
+  customer: "",
+  dateFrom: "",
+  dateTo: "",
+};

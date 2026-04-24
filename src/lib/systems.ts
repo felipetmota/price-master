@@ -1,4 +1,4 @@
-import { LucideIcon, Tags, Boxes, ShoppingCart, Truck } from "lucide-react";
+import { LucideIcon, Tags, ScanLine, ShoppingCart, Truck } from "lucide-react";
 
 export type SystemStatus = "active" | "coming-soon";
 
@@ -26,12 +26,12 @@ export const SYSTEMS: AppSystem[] = [
     status: "active",
   },
   {
-    key: "inventory",
-    name: "Inventory Control",
-    description: "Stock levels, movements, and warehouse visibility.",
-    icon: Boxes,
-    path: "/inventory",
-    status: "coming-soon",
+    key: "xray-reports",
+    name: "Radiographic Examination Reports",
+    description: "X-ray records, edit details, and print Nasmyth-style reports.",
+    icon: ScanLine,
+    path: "/xray-reports",
+    status: "active",
   },
   {
     key: "purchase-orders",

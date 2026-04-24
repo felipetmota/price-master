@@ -21,6 +21,49 @@ function ensureSchema() {
     db.exec("ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''");
     console.log("[migrate] Added users.email column");
   }
+
+  // ---- Seed X-ray reports on first boot ------------------------------
+  try {
+    const count = db.prepare("SELECT COUNT(*) AS n FROM xray_reports").get().n;
+    if (count === 0) {
+      const seedPath = path.join(__dirname, "..", "data", "xray-reports.seed.json");
+      if (fs.existsSync(seedPath)) {
+        const records = JSON.parse(fs.readFileSync(seedPath, "utf8"));
+        const crypto = require("crypto");
+        const COLS = [
+          "id","report_number","part_no","description","quantity","report_date",
+          "operation_no","planning_card_no","customer","xray_technique_no","issue",
+          "kv","ma","time_seconds","sfd_mm","film_type_qty","xray_serial_no",
+          "accepted_qty","rework_qty","reject_qty","interpreter","radiographer",
+          "second_scrutineer","radiographic_procedure","acceptance_criteria",
+        ];
+        const placeholders = COLS.map(() => "?").join(",");
+        const stmt = db.prepare(
+          `INSERT OR IGNORE INTO xray_reports (${COLS.join(",")}) VALUES (${placeholders})`,
+        );
+        const insertMany = db.transaction((rows) => {
+          for (const r of rows) {
+            stmt.run(
+              crypto.randomUUID(),
+              r.reportNumber, r.partNo || "", r.description || "", r.quantity || "",
+              r.date || null, r.operationNo || "", r.planningCardNo || "",
+              r.customer || "", r.xrayTechniqueNo || "", r.issue || "",
+              r.kv || "", r.ma || "", r.timeSeconds || "", r.sfdMm || "",
+              r.filmTypeQty || "", r.xraySerialNo || "",
+              r.acceptedQty ?? null, r.reworkQty ?? null, r.rejectQty ?? null,
+              r.interpreter || "", r.radiographer || "", r.secondScrutineer || "",
+              r.radiographicProcedure || "", r.acceptanceCriteria || "",
+            );
+          }
+        });
+        insertMany(records);
+        console.log(`[migrate] Seeded ${records.length} X-ray report(s)`);
+      }
+    }
+  } catch (e) {
+    console.warn("[migrate] X-ray seed skipped:", e.message);
+  }
+
   console.log("[migrate] Schema ensured");
 }
 

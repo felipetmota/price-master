@@ -10,6 +10,7 @@ const rates = require("./routes/rates");
 const audit = require("./routes/audit");
 const auth = require("./routes/auth");
 const users = require("./routes/users");
+const xrayReports = require("./routes/xrayReports");
 
 const app = express();
 const origin = process.env.CORS_ORIGIN || "*";
@@ -31,6 +32,7 @@ app.use("/api/rates", rates);
 app.use("/api/audit", audit);
 app.use("/api/auth", auth);
 app.use("/api/users", users);
+app.use("/api/xray-reports", xrayReports);
 
 // Error handler
 app.use((err, _req, res, _next) => {

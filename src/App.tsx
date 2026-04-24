@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index.tsx";
 import Admin from "./pages/Admin.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
+import XrayReports from "./pages/XrayReports.tsx";
 import SystemGuard from "./components/app/SystemGuard.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -28,6 +29,14 @@ const App = () => (
                 element={
                   <SystemGuard systemKey="price-management">
                     <Dashboard />
+                  </SystemGuard>
+                }
+              />
+              <Route
+                path="/xray-reports"
+                element={
+                  <SystemGuard systemKey="xray-reports">
+                    <XrayReports />
                   </SystemGuard>
                 }
               />
