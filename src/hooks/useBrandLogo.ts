@@ -41,8 +41,8 @@ export function fileToDataUrl(file: File): Promise<string> {
 
     img.onload = () => {
       try {
-        const maxWidth = 600;
-        const maxHeight = 240;
+        const maxWidth = 1200;
+        const maxHeight = 480;
         const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
         const width = Math.max(1, Math.round(img.width * scale));
         const height = Math.max(1, Math.round(img.height * scale));
