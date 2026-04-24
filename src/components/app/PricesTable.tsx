@@ -23,7 +23,7 @@ export default function PricesTable({ rows, selected, onToggle, onToggleAll, onE
   const groups = useMemo(() => {
     const map = new Map<string, PriceRecord[]>();
     rows.forEach((r) => {
-      const key = `${r.partNumber}__${r.contractNumber}__${r.supplier}`;
+      const key = `${r.partNumber}__${r.contractNumber}__${r.supplier}__${r.dateFrom}__${r.dateTo}`;
       const arr = map.get(key) ?? [];
       arr.push(r);
       map.set(key, arr);
