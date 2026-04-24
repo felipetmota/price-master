@@ -12,6 +12,15 @@ function ensureSchema() {
   const sql = fs.readFileSync(schemaPath, "utf8");
   // better-sqlite3 supports running multi-statement scripts via exec().
   db.exec(sql);
+
+  // ---- Additive column migrations (idempotent) -----------------------
+  // SQLite doesn't support `ADD COLUMN IF NOT EXISTS`, so we inspect
+  // pragma_table_info and conditionally ALTER.
+  const cols = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+  if (!cols.includes("email")) {
+    db.exec("ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''");
+    console.log("[migrate] Added users.email column");
+  }
   console.log("[migrate] Schema ensured");
 }
 

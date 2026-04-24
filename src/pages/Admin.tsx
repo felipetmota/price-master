@@ -18,9 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Contract, Currency, CURRENCIES, ExchangeRates, PriceRecord } from "@/lib/types";
 import { fmtDateTime, fmtMoney, fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { ArrowLeftRight, FileText, History, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeftRight, FileText, History, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2, Users as UsersIcon, Lock } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SYSTEMS } from "@/lib/systems";
+import { api, apiEnabled } from "@/lib/api";
+import { AppUser } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +57,9 @@ export default function Admin() {
             <TabsTrigger value="rates">
               <ArrowLeftRight className="size-4" /> Exchange Rates
             </TabsTrigger>
+            <TabsTrigger value="users">
+              <UsersIcon className="size-4" /> Users
+            </TabsTrigger>
             <TabsTrigger value="access">
               <KeyRound className="size-4" /> Access
             </TabsTrigger>
@@ -71,6 +76,9 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="rates">
             <RatesTab />
+          </TabsContent>
+          <TabsContent value="users">
+            <UsersTab />
           </TabsContent>
           <TabsContent value="access">
             <AccessTab />
@@ -592,5 +600,437 @@ function AccessTab() {
         </table>
       </div>
     </div>
+  );
+}
+
+/* ---------------- Users (CRUD + reset password) ---------------- */
+function UsersTab() {
+  const { users, reloadUsers, setUsers } = useData();
+  const { user: currentUser } = useAuth();
+  const [editing, setEditing] = useState<AppUser | null>(null);
+  const [openForm, setOpenForm] = useState(false);
+  const [resetting, setResetting] = useState<AppUser | null>(null);
+  const [confirmDel, setConfirmDel] = useState<AppUser | null>(null);
+
+  const apiOn = apiEnabled();
+
+  return (
+    <div className="space-y-4">
+      {!apiOn && (
+        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          Backend API not configured (<span className="font-mono">VITE_API_URL</span>). Changes here will only update the
+          in-memory list and won't persist.
+        </div>
+      )}
+      <div className="flex justify-between items-center">
+        <p className="text-sm text-muted-foreground num">{users.length} user(s)</p>
+        <Button size="sm" onClick={() => { setEditing(null); setOpenForm(true); }}>
+          <Plus className="size-4" /> New user
+        </Button>
+      </div>
+
+      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/60 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2.5 text-left font-medium">Name</th>
+              <th className="px-3 py-2.5 text-left font-medium">Username</th>
+              <th className="px-3 py-2.5 text-left font-medium">Email</th>
+              <th className="px-3 py-2.5 text-left font-medium">Role</th>
+              <th className="px-3 py-2.5 text-left font-medium">Systems</th>
+              <th className="px-3 py-2.5 w-32" />
+            </tr>
+          </thead>
+          <tbody>
+            {users.length === 0 && (
+              <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">No users.</td></tr>
+            )}
+            {users.map((u) => {
+              const isAdminUser = (u.role ?? "").toLowerCase() === "admin";
+              return (
+                <tr key={u.username} className="border-t hover:bg-secondary/40">
+                  <td className="px-3 py-2.5 font-medium">{u.name || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-3 py-2.5 font-mono text-xs">{u.username}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{u.email || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-3 py-2.5">
+                    <Badge variant={isAdminUser ? "default" : "secondary"} className="font-mono text-[10px]">
+                      {u.role}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {isAdminUser ? (
+                      <span className="text-xs text-muted-foreground italic">all (admin)</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {(u.systems ?? []).length === 0 ? (
+                          <span className="text-xs text-muted-foreground">none</span>
+                        ) : (
+                          (u.systems ?? []).map((k) => (
+                            <Badge key={k} variant="outline" className="font-mono text-[10px]">{k}</Badge>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <div className="flex justify-end gap-0.5">
+                      <Button variant="ghost" size="icon" className="size-8" title="Edit"
+                        onClick={() => { setEditing(u); setOpenForm(true); }}>
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="size-8" title="Reset password"
+                        onClick={() => setResetting(u)}>
+                        <Lock className="size-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive"
+                        title="Delete"
+                        disabled={currentUser?.username.toLowerCase() === u.username.toLowerCase()}
+                        onClick={() => setConfirmDel(u)}>
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <UserFormDialog
+        open={openForm}
+        onOpenChange={setOpenForm}
+        editing={editing}
+        existingUsernames={users.map((u) => u.username.toLowerCase())}
+        onSubmit={async (data) => {
+          try {
+            if (editing) {
+              if (apiOn) {
+                await api.updateUser(editing.username, {
+                  name: data.name,
+                  email: data.email,
+                  role: data.role,
+                });
+                await reloadUsers();
+              } else {
+                setUsers(users.map((u) =>
+                  u.username === editing.username
+                    ? { ...u, name: data.name, email: data.email, role: data.role }
+                    : u,
+                ));
+              }
+              toast.success("User updated.");
+            } else {
+              if (apiOn) {
+                await api.createUser({
+                  username: data.username,
+                  password: data.password,
+                  name: data.name,
+                  email: data.email,
+                  role: data.role,
+                  systems: data.systems,
+                });
+                await reloadUsers();
+              } else {
+                setUsers([...users, {
+                  username: data.username,
+                  password: data.password,
+                  name: data.name,
+                  email: data.email,
+                  role: data.role,
+                  systems: data.systems,
+                }]);
+              }
+              toast.success("User created.");
+            }
+            return true;
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Failed to save user.");
+            return false;
+          }
+        }}
+      />
+
+      <ResetPasswordDialog
+        user={resetting}
+        onClose={() => setResetting(null)}
+        onSubmit={async (password) => {
+          if (!resetting) return false;
+          try {
+            if (apiOn) {
+              await api.resetUserPassword(resetting.username, password);
+            } else {
+              setUsers(users.map((u) =>
+                u.username === resetting.username ? { ...u, password } : u,
+              ));
+            }
+            toast.success(`Password reset for ${resetting.username}.`);
+            return true;
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Failed to reset password.");
+            return false;
+          }
+        }}
+      />
+
+      <AlertDialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDel && `User "${confirmDel.username}" will be removed along with their system grants. This cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmDel) return;
+                try {
+                  if (apiOn) {
+                    await api.deleteUser(confirmDel.username);
+                    await reloadUsers();
+                  } else {
+                    setUsers(users.filter((u) => u.username !== confirmDel.username));
+                  }
+                  toast.success("User deleted.");
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Failed to delete user.");
+                }
+                setConfirmDel(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function UserFormDialog({
+  open,
+  onOpenChange,
+  editing,
+  existingUsernames,
+  onSubmit,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  editing: AppUser | null;
+  existingUsernames: string[];
+  onSubmit: (data: {
+    username: string;
+    password: string;
+    name: string;
+    email: string;
+    role: string;
+    systems: string[];
+  }) => Promise<boolean>;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("user");
+  const [systems, setSystems] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setUsername(editing.username);
+      setPassword("");
+      setName(editing.name);
+      setEmail(editing.email ?? "");
+      setRole(editing.role || "user");
+      setSystems(editing.systems ?? []);
+    } else {
+      setUsername("");
+      setPassword("");
+      setName("");
+      setEmail("");
+      setRole("user");
+      setSystems([]);
+    }
+  }, [open, editing]);
+
+  const submit = async () => {
+    if (!editing) {
+      if (!username.trim()) return toast.error("Username is required.");
+      if (existingUsernames.includes(username.trim().toLowerCase())) {
+        return toast.error("Username already exists.");
+      }
+      if (!password || password.length < 4) {
+        return toast.error("Password must be at least 4 characters.");
+      }
+    }
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+      return toast.error("Invalid email format.");
+    }
+    setBusy(true);
+    const ok = await onSubmit({
+      username: username.trim(),
+      password,
+      name: name.trim(),
+      email: email.trim(),
+      role: role.trim().toLowerCase(),
+      systems,
+    });
+    setBusy(false);
+    if (ok) onOpenChange(false);
+  };
+
+  const isAdminRole = role.toLowerCase() === "admin";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{editing ? `Edit user · ${editing.username}` : "New user"}</DialogTitle>
+          <DialogDescription>
+            {editing
+              ? "Update profile fields. Use the lock icon on the list to reset the password."
+              : "Create a new account. The password can be changed later from the list."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Username</Label>
+              <Input
+                value={username}
+                disabled={!!editing}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="jdoe"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Role</Label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">user</SelectItem>
+                  <SelectItem value="admin">admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Full name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Email</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="jane@example.com"
+            />
+          </div>
+          {!editing && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Initial password</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min. 4 characters"
+              />
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">System access</Label>
+            {isAdminRole ? (
+              <p className="text-xs text-muted-foreground italic">
+                Admins automatically have access to every system.
+              </p>
+            ) : (
+              <div className="rounded-md border bg-background p-2 space-y-1.5 max-h-44 overflow-auto">
+                {SYSTEMS.map((s) => {
+                  const checked = systems.includes(s.key);
+                  return (
+                    <label key={s.key} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/40 rounded px-1.5 py-1">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          if (v) setSystems([...systems, s.key]);
+                          else setSystems(systems.filter((k) => k !== s.key));
+                        }}
+                      />
+                      <span className="flex-1">{s.name}</span>
+                      {s.status === "coming-soon" && (
+                        <span className="text-[10px] text-muted-foreground">coming soon</span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
+          <Button onClick={submit} disabled={busy}>{editing ? "Save" : "Create"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ResetPasswordDialog({
+  user,
+  onClose,
+  onSubmit,
+}: {
+  user: AppUser | null;
+  onClose: () => void;
+  onSubmit: (password: string) => Promise<boolean>;
+}) {
+  const [pwd, setPwd] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (user) { setPwd(""); setConfirm(""); }
+  }, [user]);
+
+  const submit = async () => {
+    if (!pwd || pwd.length < 4) return toast.error("Password must be at least 4 characters.");
+    if (pwd !== confirm) return toast.error("Passwords do not match.");
+    setBusy(true);
+    const ok = await onSubmit(pwd);
+    setBusy(false);
+    if (ok) onClose();
+  };
+
+  return (
+    <Dialog open={!!user} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reset password</DialogTitle>
+          <DialogDescription>
+            Set a new password for <span className="font-mono">{user?.username}</span>. The user will need it on the next login.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">New password</Label>
+            <Input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Confirm password</Label>
+            <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button onClick={submit} disabled={busy}>Reset password</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

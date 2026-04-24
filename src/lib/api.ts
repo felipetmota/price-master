@@ -100,4 +100,33 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ systems }),
     }),
+  createUser: (body: {
+    username: string;
+    password: string;
+    name: string;
+    email: string;
+    role: string;
+    systems?: string[];
+  }) =>
+    request<AppUser>("/api/users", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateUser: (
+    username: string,
+    patch: { name?: string; email?: string; role?: string },
+  ) =>
+    request<{ ok: boolean }>(`/api/users/${encodeURIComponent(username)}`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }),
+  resetUserPassword: (username: string, password: string) =>
+    request<{ ok: boolean }>(
+      `/api/users/${encodeURIComponent(username)}/reset-password`,
+      { method: "POST", body: JSON.stringify({ password }) },
+    ),
+  deleteUser: (username: string) =>
+    request<{ ok: boolean }>(`/api/users/${encodeURIComponent(username)}`, {
+      method: "DELETE",
+    }),
 };
