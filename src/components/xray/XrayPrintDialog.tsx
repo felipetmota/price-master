@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -123,9 +123,9 @@ const PRINT_STYLES = `
   .rer-italic { font-style: italic; color: #555; font-size: 8pt; }
 `;
 
-const PrintableReport = require("react").forwardRef(function PrintableReport(
-  { report, summary }: { report: XrayReport; summary: string },
-  ref: React.Ref<HTMLDivElement>,
+const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary: string }>(function PrintableReport(
+  { report, summary },
+  ref,
 ) {
   return (
     <div ref={ref} className="rer-doc">
