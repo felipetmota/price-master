@@ -152,13 +152,10 @@ const PRINT_STYLES = `
   .rer-italic { font-style: italic; color: #555; font-size: 8pt; }
 `;
 
-const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary: string; logo: string | null; address: string }>(function PrintableReport(
-  { report, summary, logo, address },
-  ref,
-) {
+function PrintableReport({ report, summary, logo, address }: { report: XrayReport; summary: string; logo: string | null; address: string }) {
   const addressLines = address.split("\n");
   return (
-    <div ref={ref} className="rer-doc">
+    <div className="rer-doc">
       <div className="rer-header">
         <div className="rer-brand">
           {logo ? (
@@ -244,7 +241,7 @@ const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary
       </div>
     </div>
   );
-});
+}
 
 function Field({ label, value, bold }: { label: string; value: React.ReactNode; bold?: boolean }) {
   return (
