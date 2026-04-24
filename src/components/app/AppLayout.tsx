@@ -55,6 +55,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <main className="flex-1">
         <div className="mx-auto max-w-[1400px] px-6 py-8">{children}</div>
       </main>
+      <footer className="border-t bg-card">
+        <div className="mx-auto max-w-[1400px] px-6 h-12 flex items-center justify-center text-xs text-muted-foreground">
+          Developed by{" "}
+          <a
+            href="https://getmysite.co.uk/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-1 font-medium text-foreground hover:text-accent transition-colors"
+          >
+            GetMySite
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
