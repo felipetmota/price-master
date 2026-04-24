@@ -1,0 +1,73 @@
+# Builds and pushes the API and Web Docker images to GitHub Container
+# Registry (GHCR) on every push to main. The images are then consumed
+# by docker-stack.yml in Portainer.
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      vite_api_url:
+        description: "VITE_API_URL baked into the frontend bundle"
+        required: false
+        default: "https://price-api.webtorres.com.br"
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+  # Frontend bundle bakes this URL at build time.
+  VITE_API_URL: https://price-api.webtorres.com.br
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/price-master-api:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/price-master-api:${{ github.sha }}
+
+  build-web:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=${{ github.event.inputs.vite_api_url || env.VITE_API_URL }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/price-master-web:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/price-master-web:${{ github.sha }}
