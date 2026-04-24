@@ -235,7 +235,7 @@ const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary
       <div className="rer-foot">
         <div>QA-RER No.1</div>
         <div>Issue no.3</div>
-        <div>Date: 09/05/2017</div>
+        <div>Date: {new Date().toLocaleDateString("en-GB")}</div>
       </div>
     </div>
   );
