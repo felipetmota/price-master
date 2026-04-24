@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { XrayReport } from "@/lib/types";
 import { Printer } from "lucide-react";
+import { useBrandLogo } from "@/hooks/useBrandLogo";
 
 interface Props {
   open: boolean;
@@ -21,6 +22,7 @@ interface Props {
 export default function XrayPrintDialog({ open, onOpenChange, report }: Props) {
   const [summary, setSummary] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
+  const { logo } = useBrandLogo();
 
   useEffect(() => {
     if (open) setSummary("");
@@ -64,7 +66,7 @@ export default function XrayPrintDialog({ open, onOpenChange, report }: Props) {
           <p className="text-xs text-muted-foreground mb-2">Preview</p>
           <div className="bg-muted/40 p-4 rounded-md flex justify-center overflow-auto">
             <style>{PRINT_STYLES}</style>
-            <PrintableReport ref={printRef} report={report} summary={summary} />
+            <PrintableReport ref={printRef} report={report} summary={summary} logo={logo} />
           </div>
         </div>
 
