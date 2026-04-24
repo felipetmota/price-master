@@ -38,7 +38,24 @@ export default function XrayPrintDialog({ open, onOpenChange, report }: Props) {
     win.document.write(`<!doctype html>
 <html><head><meta charset="utf-8"><title>RER ${report.reportNumber}</title>
 <style>${PRINT_STYLES}</style>
-</head><body>${html}<script>window.onload=()=>{setTimeout(()=>{window.print();window.close();},150);}</script></body></html>`);
+</head><body>${html}<script>
+(function(){
+  function doPrint(){ try { window.focus(); window.print(); } finally { setTimeout(function(){ window.close(); }, 200); } }
+  function ready(){
+    var imgs = Array.prototype.slice.call(document.images || []);
+    if (imgs.length === 0) return doPrint();
+    var pending = imgs.length;
+    var done = function(){ pending--; if (pending <= 0) doPrint(); };
+    imgs.forEach(function(img){
+      if (img.complete && img.naturalWidth > 0) return done();
+      img.addEventListener('load', done);
+      img.addEventListener('error', done);
+    });
+    setTimeout(doPrint, 3000); // hard fallback
+  }
+  if (document.readyState === 'complete') ready(); else window.addEventListener('load', ready);
+})();
+</script></body></html>`);
     win.document.close();
   };
 
