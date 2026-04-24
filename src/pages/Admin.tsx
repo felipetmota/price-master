@@ -20,6 +20,8 @@ import { fmtDateTime, fmtMoney, fmtDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ArrowLeftRight, FileText, History, Image as ImageIcon, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2, Upload, Users as UsersIcon, Lock } from "lucide-react";
 import { useBrandLogo, fileToDataUrl } from "@/hooks/useBrandLogo";
+import { useBrandAddress, DEFAULT_BRAND_ADDRESS } from "@/hooks/useBrandAddress";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SYSTEMS } from "@/lib/systems";
 import { api, apiEnabled } from "@/lib/api";
