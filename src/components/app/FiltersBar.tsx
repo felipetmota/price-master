@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { PriceFilters, emptyFilters } from "@/lib/types";
 import { Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import ComboInput from "@/components/app/ComboInput";
+import { useData } from "@/contexts/DataContext";
 
 interface Props {
   value: PriceFilters;
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export default function FiltersBar({ value, onChange, resultCount, totalCount }: Props) {
+  const { partNumbers, suppliers, contractNumbers } = useData();
   // Local mirror so typing stays instant; debounce text/numeric fields
   // before propagating to the parent (which re-filters thousands of rows).
   const [local, setLocal] = useState<PriceFilters>(value);
@@ -28,6 +31,15 @@ export default function FiltersBar({ value, onChange, resultCount, totalCount }:
     setLocal(next);
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => onChange(next), 250);
+  };
+
+  // Combobox commits filter values immediately (no debounce) — selection
+  // events are user-driven and infrequent.
+  const setNow = <K extends keyof PriceFilters>(k: K, v: PriceFilters[K]) => {
+    const next = { ...local, [k]: v };
+    setLocal(next);
+    if (timer.current) window.clearTimeout(timer.current);
+    onChange(next);
   };
 
   const hasActive = JSON.stringify(local) !== JSON.stringify(emptyFilters);
@@ -57,13 +69,28 @@ export default function FiltersBar({ value, onChange, resultCount, totalCount }:
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Field label="Contract Number">
-          <Input value={local.contractNumber} onChange={(e) => set("contractNumber", e.target.value)} placeholder="CT-..." />
+          <ComboInput
+            value={local.contractNumber}
+            onChange={(v) => setNow("contractNumber", v)}
+            options={contractNumbers}
+            placeholder="CT-..."
+          />
         </Field>
         <Field label="Part Number">
-          <Input value={local.partNumber} onChange={(e) => set("partNumber", e.target.value)} placeholder="AB123" />
+          <ComboInput
+            value={local.partNumber}
+            onChange={(v) => setNow("partNumber", v)}
+            options={partNumbers}
+            placeholder="AB123"
+          />
         </Field>
         <Field label="Supplier">
-          <Input value={local.supplier} onChange={(e) => set("supplier", e.target.value)} placeholder="Acme..." />
+          <ComboInput
+            value={local.supplier}
+            onChange={(v) => setNow("supplier", v)}
+            options={suppliers}
+            placeholder="Acme..."
+          />
         </Field>
         <Field label="Date From">
           <Input type="date" value={local.dateFrom} onChange={(e) => set("dateFrom", e.target.value)} />
