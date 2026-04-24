@@ -68,8 +68,8 @@ const defaultRates: ExchangeRates = {
  * In production the API + SQLite owns authentication; these are never used.
  */
 const fallbackUsers: AppUser[] = [
-  { username: "admin", password: "admin123", name: "Administrator", role: "admin", systems: ["price-management"] },
-  { username: "user",  password: "user123",  name: "Standard User", role: "user",  systems: ["price-management"] },
+  { username: "admin", password: "admin123", name: "Administrator", role: "admin", systems: ["price-management", "xray-reports"] },
+  { username: "user",  password: "user123",  name: "Standard User", role: "user",  systems: ["price-management", "xray-reports"] },
 ];
 
 export function DataProvider({ children }: { children: ReactNode }) {
