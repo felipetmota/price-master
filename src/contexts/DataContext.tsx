@@ -31,6 +31,7 @@ interface DataContextValue {
   setActor: (username: string | null) => void;
 
   setAll: (prices: PriceRecord[], users?: AppUser[]) => void;
+  setUsers: (users: AppUser[]) => void;
   addPrices: (rows: PriceRecord[], source?: "manual" | "import") => void;
   updatePrice: (id: string, patch: Partial<PriceRecord>) => void;
   deletePrices: (ids: string[]) => void;
@@ -187,6 +188,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setPrices(p);
         if (u) setUsers(u);
       },
+
+      setUsers: (u) => setUsers(u),
 
       addPrices: (rows, source = "manual") => {
         setPrices((cur) => [...cur, ...rows]);
