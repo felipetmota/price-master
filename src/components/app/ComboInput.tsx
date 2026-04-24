@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronDown, X } from "lucide-react";
@@ -94,7 +94,7 @@ export default function ComboInput({
   return (
     <Popover open={open && !disabled} onOpenChange={setOpen}>
       <div className={cn("relative", className)}>
-        <PopoverTrigger asChild>
+        <PopoverAnchor asChild>
           <Input
             id={id}
             ref={inputRef}
@@ -107,6 +107,9 @@ export default function ComboInput({
               if (allowFreeText) onChange(e.target.value);
             }}
             onFocus={() => setOpen(true)}
+            onMouseDown={() => {
+              if (!disabled) setOpen(true);
+            }}
             onBlur={() => {
               if (!allowFreeText) commit(query);
             }}
@@ -124,7 +127,7 @@ export default function ComboInput({
             className="pr-16"
             autoComplete="off"
           />
-        </PopoverTrigger>
+        </PopoverAnchor>
         {query && !disabled && (
           <Button
             type="button"
@@ -148,6 +151,11 @@ export default function ComboInput({
         align="start"
         className="p-0 w-[--radix-popover-trigger-width] max-h-72 overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          if (e.target instanceof Node && inputRef.current?.contains(e.target)) {
+            e.preventDefault();
+          }
+        }}
       >
         <div className="max-h-72 overflow-y-auto py-1">
           {filtered.length === 0 ? (
