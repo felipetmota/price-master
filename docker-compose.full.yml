@@ -1,0 +1,73 @@
+# ---------------------------------------------------------------------
+# Full stack (API + Frontend) for Portainer.
+#
+# Use this file when you do NOT want to manage the frontend on your
+# host's nginx. It builds the React app into a small nginx container
+# and ships everything together.
+#
+# Required environment variables in Portainer:
+#   - API_HOST       e.g. price-api.intranet.local
+#   - APP_HOST       e.g. prices.intranet.local
+#   - VITE_API_URL   e.g. https://price-api.intranet.local
+#   - CORS_ORIGIN    e.g. https://prices.intranet.local
+#
+# After first deploy, seed users:
+#   docker exec -it price-management-api node scripts/hash-passwords.js
+# ---------------------------------------------------------------------
+services:
+  api:
+    build:
+      context: ./server
+    image: price-management-api:latest
+    container_name: price-management-api
+    restart: unless-stopped
+    environment:
+      SQLITE_PATH: /data/prices.db
+      PORT: 3001
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    volumes:
+      - price_data:/data
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.price-api.rule=Host(`${API_HOST}`)"
+      - "traefik.http.routers.price-api.entrypoints=websecure"
+      - "traefik.http.routers.price-api.tls=true"
+      # Enable if you use a Let's Encrypt resolver named "le":
+      # - "traefik.http.routers.price-api.tls.certresolver=le"
+      - "traefik.http.services.price-api.loadbalancer.server.port=3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    image: price-management-web:latest
+    container_name: price-management-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.price-web.rule=Host(`${APP_HOST}`)"
+      - "traefik.http.routers.price-web.entrypoints=websecure"
+      - "traefik.http.routers.price-web.tls=true"
+      # - "traefik.http.routers.price-web.tls.certresolver=le"
+      - "traefik.http.services.price-web.loadbalancer.server.port=80"
+
+volumes:
+  price_data:
+    # Persistent SQLite storage. Backup with:
+    #   docker run --rm -v price_data:/data -v $PWD:/backup alpine \
+    #     tar czf /backup/prices-$(date +%F).tgz -C /data .
+
+networks:
+  traefik:
+    external: true
+    name: traefik
