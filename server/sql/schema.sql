@@ -1,101 +1,104 @@
 -- =====================================================================
--- Price Management — PostgreSQL schema
--- Compatible with PostgreSQL 13+
--- Run once against an empty database, e.g.:
---   createdb price_management
---   psql -d price_management -f server/sql/schema.sql
+-- Price Management — SQLite schema
+-- Compatible with SQLite 3.35+ (RETURNING clause requires 3.35).
+-- Auto-applied on first API boot by server/src/migrate.js.
+--
+-- Note: SQLite uses dynamic typing. The "currency" CHECK constraints
+-- enforce a small allow-list, and dates are stored as ISO strings.
 -- =====================================================================
-
-CREATE EXTENSION IF NOT EXISTS pgcrypto;  -- gen_random_uuid()
-
-DROP TABLE IF EXISTS audit_log     CASCADE;
-DROP TABLE IF EXISTS prices        CASCADE;
-DROP TABLE IF EXISTS contracts     CASCADE;
-DROP TABLE IF EXISTS exchange_rates CASCADE;
-DROP TABLE IF EXISTS users         CASCADE;
 
 -- ---------------------------------------------------------------------
 -- Contracts
 -- ---------------------------------------------------------------------
-CREATE TABLE contracts (
-    id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    contract_number TEXT         NOT NULL UNIQUE,
-    description     TEXT         NOT NULL DEFAULT '',
-    currency        CHAR(3)      NOT NULL DEFAULT 'USD'
+CREATE TABLE IF NOT EXISTS contracts (
+    id              TEXT    PRIMARY KEY,
+    contract_number TEXT    NOT NULL UNIQUE,
+    description     TEXT    NOT NULL DEFAULT '',
+    currency        TEXT    NOT NULL DEFAULT 'USD'
         CHECK (currency IN ('USD','EUR','GBP','BRL')),
-    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 -- ---------------------------------------------------------------------
 -- Prices
 -- ---------------------------------------------------------------------
-CREATE TABLE prices (
-    id                    UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
-    contract_number       TEXT           NOT NULL
-        REFERENCES contracts(contract_number) ON UPDATE CASCADE ON DELETE RESTRICT,
-    part_number           TEXT           NOT NULL,
-    supplier              TEXT           NOT NULL DEFAULT '',
-    date_from             DATE,
-    date_to               DATE,
-    quantity_from         INTEGER        NOT NULL DEFAULT 1,
-    quantity_to           INTEGER        NOT NULL DEFAULT 9999999,
-    unit_price            NUMERIC(18, 6),
-    lot_price             NUMERIC(18, 6),
-    currency              CHAR(3)        NOT NULL DEFAULT 'USD'
+CREATE TABLE IF NOT EXISTS prices (
+    id                    TEXT    PRIMARY KEY,
+    contract_number       TEXT    NOT NULL,
+    part_number           TEXT    NOT NULL,
+    supplier              TEXT    NOT NULL DEFAULT '',
+    date_from             TEXT,
+    date_to               TEXT,
+    quantity_from         INTEGER NOT NULL DEFAULT 1,
+    quantity_to           INTEGER NOT NULL DEFAULT 9999999,
+    unit_price            REAL,
+    lot_price             REAL,
+    currency              TEXT    NOT NULL DEFAULT 'USD'
         CHECK (currency IN ('USD','EUR','GBP','BRL')),
-    previous_unit_price   NUMERIC(18, 6),
-    previous_lot_price    NUMERIC(18, 6),
-    previous_date_from    DATE,
-    previous_date_to      DATE,
-    last_changed_at       TIMESTAMPTZ,
+    previous_unit_price   REAL,
+    previous_lot_price    REAL,
+    previous_date_from    TEXT,
+    previous_date_to      TEXT,
+    last_changed_at       TEXT,
     last_changed_by       TEXT
 );
 
-CREATE INDEX idx_prices_contract  ON prices(contract_number);
-CREATE INDEX idx_prices_part      ON prices(part_number);
-CREATE INDEX idx_prices_supplier  ON prices(supplier);
-CREATE INDEX idx_prices_dates     ON prices(date_from, date_to);
+CREATE INDEX IF NOT EXISTS idx_prices_contract ON prices(contract_number);
+CREATE INDEX IF NOT EXISTS idx_prices_part     ON prices(part_number);
+CREATE INDEX IF NOT EXISTS idx_prices_supplier ON prices(supplier);
+CREATE INDEX IF NOT EXISTS idx_prices_dates    ON prices(date_from, date_to);
 
 -- ---------------------------------------------------------------------
 -- Exchange rates (one row per currency)
 -- ---------------------------------------------------------------------
-CREATE TABLE exchange_rates (
-    currency   CHAR(3)        PRIMARY KEY
+CREATE TABLE IF NOT EXISTS exchange_rates (
+    currency   TEXT    PRIMARY KEY
         CHECK (currency IN ('USD','EUR','GBP','BRL')),
-    rate       NUMERIC(18, 8) NOT NULL DEFAULT 1,
-    is_base    BOOLEAN        NOT NULL DEFAULT FALSE,
-    updated_at TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+    rate       REAL    NOT NULL DEFAULT 1,
+    is_base    INTEGER NOT NULL DEFAULT 0,   -- 0/1 boolean
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
-INSERT INTO exchange_rates (currency, rate, is_base) VALUES
-    ('USD', 1.00, TRUE),
-    ('EUR', 0.92, FALSE),
-    ('GBP', 0.79, FALSE),
-    ('BRL', 5.10, FALSE);
+INSERT OR IGNORE INTO exchange_rates (currency, rate, is_base) VALUES
+    ('USD', 1.00, 1),
+    ('EUR', 0.92, 0),
+    ('GBP', 0.79, 0),
+    ('BRL', 5.10, 0);
 
 -- ---------------------------------------------------------------------
 -- Users (passwords stored as bcrypt hashes)
 -- ---------------------------------------------------------------------
-CREATE TABLE users (
-    username      TEXT         PRIMARY KEY,
-    password_hash TEXT         NOT NULL,
-    name          TEXT         NOT NULL DEFAULT '',
-    role          TEXT         NOT NULL DEFAULT 'user',
-    created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS users (
+    username      TEXT    PRIMARY KEY,
+    password_hash TEXT    NOT NULL,
+    name          TEXT    NOT NULL DEFAULT '',
+    role          TEXT    NOT NULL DEFAULT 'user',
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 -- ---------------------------------------------------------------------
--- Audit log
+-- Per-user system grants. Admins implicitly access every system; this
+-- table only stores explicit grants for non-admin users.
 -- ---------------------------------------------------------------------
-CREATE TABLE audit_log (
-    id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    at            TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    "user"        TEXT         NOT NULL DEFAULT 'system',
-    action        TEXT         NOT NULL,
-    summary       TEXT         NOT NULL,
-    affected_ids  JSONB,
-    details       JSONB
+CREATE TABLE IF NOT EXISTS user_systems (
+    username    TEXT NOT NULL,
+    system_key  TEXT NOT NULL,
+    PRIMARY KEY (username, system_key),
+    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_audit_at     ON audit_log(at DESC);
-CREATE INDEX idx_audit_action ON audit_log(action);
+-- ---------------------------------------------------------------------
+-- Audit log. JSON columns are stored as TEXT and parsed by the API.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS audit_log (
+    id            TEXT    PRIMARY KEY,
+    at            TEXT    NOT NULL DEFAULT (datetime('now')),
+    user          TEXT    NOT NULL DEFAULT 'system',
+    action        TEXT    NOT NULL,
+    summary       TEXT    NOT NULL,
+    affected_ids  TEXT,   -- JSON array
+    details       TEXT    -- JSON object
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_at     ON audit_log(at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
