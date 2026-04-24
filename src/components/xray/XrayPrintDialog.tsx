@@ -33,30 +33,71 @@ export default function XrayPrintDialog({ open, onOpenChange, report }: Props) {
   const handlePrint = () => {
     if (!report) return;
     const html = printRef.current?.outerHTML ?? "";
-    const win = window.open("", "_blank", "width=900,height=1100");
-    if (!win) return;
-    win.document.write(`<!doctype html>
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      iframe.remove();
+      return;
+    }
+
+    const cleanup = () => setTimeout(() => iframe.remove(), 400);
+
+    doc.open();
+    doc.write(`<!doctype html>
 <html><head><meta charset="utf-8"><title>RER ${report.reportNumber}</title>
 <style>${PRINT_STYLES}</style>
-</head><body>${html}<script>
-(function(){
-  function doPrint(){ try { window.focus(); window.print(); } finally { setTimeout(function(){ window.close(); }, 200); } }
-  function ready(){
-    var imgs = Array.prototype.slice.call(document.images || []);
-    if (imgs.length === 0) return doPrint();
-    var pending = imgs.length;
-    var done = function(){ pending--; if (pending <= 0) doPrint(); };
-    imgs.forEach(function(img){
-      if (img.complete && img.naturalWidth > 0) return done();
-      img.addEventListener('load', done);
-      img.addEventListener('error', done);
+</head><body>${html}</body></html>`);
+    doc.close();
+
+    const triggerPrint = () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } finally {
+        cleanup();
+      }
+    };
+
+    const images = Array.from(doc.images ?? []);
+    if (images.length === 0) {
+      triggerPrint();
+      return;
+    }
+
+    let completed = false;
+    let pending = images.length;
+    const done = () => {
+      if (completed) return;
+      pending -= 1;
+      if (pending <= 0) {
+        completed = true;
+        triggerPrint();
+      }
+    };
+
+    images.forEach((img) => {
+      if (img.complete && img.naturalWidth > 0) {
+        done();
+        return;
+      }
+      img.addEventListener("load", done, { once: true });
+      img.addEventListener("error", done, { once: true });
     });
-    setTimeout(doPrint, 3000); // hard fallback
-  }
-  if (document.readyState === 'complete') ready(); else window.addEventListener('load', ready);
-})();
-</script></body></html>`);
-    win.document.close();
+
+    window.setTimeout(() => {
+      if (!completed) {
+        completed = true;
+        triggerPrint();
+      }
+    }, 3000);
   };
 
   if (!report) return null;
