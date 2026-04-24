@@ -125,15 +125,19 @@ const PRINT_STYLES = `
   .rer-italic { font-style: italic; color: #555; font-size: 8pt; }
 `;
 
-const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary: string }>(function PrintableReport(
-  { report, summary },
+const PrintableReport = forwardRef<HTMLDivElement, { report: XrayReport; summary: string; logo: string | null }>(function PrintableReport(
+  { report, summary, logo },
   ref,
 ) {
   return (
     <div ref={ref} className="rer-doc">
       <div className="rer-header">
         <div className="rer-brand">
-          <div className="logo">N</div>
+          {logo ? (
+            <img src={logo} alt="Logo" className="logo-img" />
+          ) : (
+            <div className="logo">N</div>
+          )}
           <div>
             <div className="brand-name">Nasmyth<small>GROUP</small></div>
           </div>
