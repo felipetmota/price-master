@@ -18,7 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { Contract, Currency, CURRENCIES, ExchangeRates, PriceRecord } from "@/lib/types";
 import { fmtDateTime, fmtMoney, fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { ArrowLeftRight, FileText, History, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2, Users as UsersIcon, Lock } from "lucide-react";
+import { ArrowLeftRight, FileText, History, Image as ImageIcon, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2, Upload, Users as UsersIcon, Lock } from "lucide-react";
+import { useBrandLogo, fileToDataUrl } from "@/hooks/useBrandLogo";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SYSTEMS } from "@/lib/systems";
 import { api, apiEnabled } from "@/lib/api";
@@ -63,6 +64,9 @@ export default function Admin() {
             <TabsTrigger value="access">
               <KeyRound className="size-4" /> Access
             </TabsTrigger>
+            <TabsTrigger value="branding">
+              <ImageIcon className="size-4" /> Branding
+            </TabsTrigger>
             <TabsTrigger value="log">
               <History className="size-4" /> Activity Log
             </TabsTrigger>
@@ -82,6 +86,9 @@ export default function Admin() {
           </TabsContent>
           <TabsContent value="access">
             <AccessTab />
+          </TabsContent>
+          <TabsContent value="branding">
+            <BrandingTab />
           </TabsContent>
           <TabsContent value="log">
             <ActivityLogTab />
