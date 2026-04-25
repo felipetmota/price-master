@@ -64,8 +64,8 @@ let nid = 0;
 export const newId = () => `r_${Date.now().toString(36)}_${(nid++).toString(36)}`;
 
 const defaultRates: ExchangeRates = {
-  base: "USD",
-  rates: { USD: 1, EUR: 0.92, GBP: 0.79, BRL: 5.1 },
+  base: "GBP",
+  rates: { USD: 1.27, EUR: 1.17, GBP: 1, BRL: 6.45 },
   updatedAt: new Date().toISOString(),
 };
 
@@ -147,7 +147,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       data.contracts.forEach((c) => contractCurrency.set(c.contractNumber, c.currency));
       const enriched = data.prices.map((p) => ({
         ...p,
-        currency: p.currency ?? contractCurrency.get(p.contractNumber) ?? "USD",
+        currency: p.currency ?? contractCurrency.get(p.contractNumber) ?? "GBP",
       }));
       // derive contracts from prices if sheet is empty
       let contractsFinal = data.contracts;
@@ -159,7 +159,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               id: newId(),
               contractNumber: p.contractNumber,
               description: "",
-              currency: p.currency ?? "USD",
+              currency: p.currency ?? "GBP",
               createdAt: new Date().toISOString(),
             });
           }
