@@ -229,7 +229,7 @@ function ContractDialog({
 }) {
   const [contractNumber, setContractNumber] = useState("");
   const [description, setDescription] = useState("");
-  const [currency, setCurrency] = useState<Currency>("USD");
+  const [currency, setCurrency] = useState<Currency>("GBP");
 
   useEffect(() => {
     if (!open) return;
@@ -240,7 +240,7 @@ function ContractDialog({
     } else {
       setContractNumber("");
       setDescription("");
-      setCurrency("USD");
+      setCurrency("GBP");
     }
   }, [open, editing]);
 
