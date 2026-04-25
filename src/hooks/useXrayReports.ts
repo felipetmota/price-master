@@ -23,6 +23,16 @@ function saveLocal(rows: XrayReport[]) {
 let counter = 0;
 const newId = () => `xr_${Date.now().toString(36)}_${(counter++).toString(36)}`;
 
+/** Compute next sequential report number from a list of existing reports. */
+function computeNextNumber(rows: XrayReport[]): string {
+  let max = 0;
+  for (const r of rows) {
+    const n = parseInt(String(r.reportNumber).trim(), 10);
+    if (!isNaN(n) && n > max) max = n;
+  }
+  return String(max + 1);
+}
+
 /**
  * Single-source-of-truth hook for X-ray reports.
  * - When the on-premise API is configured, it owns the data.
@@ -60,6 +70,8 @@ export function useXrayReports() {
         setReports((cur) => [...created, ...cur]);
         return created;
       }
+      // Local mode: auto-assign blank report numbers based on current local max.
+      let nextNum = parseInt(computeNextNumber(reports), 10);
       const created: XrayReport[] = rows.map((r) => ({
         id: newId(),
         reportNumber: "",
@@ -88,7 +100,12 @@ export function useXrayReports() {
         acceptanceCriteria: "",
         createdAt: new Date().toISOString(),
         ...r,
-      } as XrayReport));
+      } as XrayReport)).map((r) => {
+        if (!r.reportNumber || !String(r.reportNumber).trim()) {
+          r.reportNumber = String(nextNum++);
+        }
+        return r;
+      });
       const next = [...created, ...reports];
       setReports(next);
       saveLocal(next);
@@ -129,5 +146,18 @@ export function useXrayReports() {
     [reports, usingApi],
   );
 
-  return { reports, loading, usingApi, reload, create, update, remove };
+  /** Get the next report number (server-authoritative when API is enabled). */
+  const getNextReportNumber = useCallback(async (): Promise<string> => {
+    if (usingApi) {
+      try {
+        const { next } = await api.nextXrayReportNumber();
+        return next;
+      } catch {
+        /* fall through to local computation */
+      }
+    }
+    return computeNextNumber(reports);
+  }, [reports, usingApi]);
+
+  return { reports, loading, usingApi, reload, create, update, remove, getNextReportNumber };
 }
