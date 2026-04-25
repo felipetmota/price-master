@@ -7,14 +7,16 @@ const router = express.Router();
 router.get("/", (_req, res, next) => {
   try {
     const { rows } = query("SELECT * FROM exchange_rates");
-    const rates = { USD: 1, EUR: 0, GBP: 0, BRL: 0 };
-    let base = "USD";
+    const rates = { USD: 0, EUR: 0, GBP: 1, BRL: 0 };
+    let base = "GBP";
     let updatedAt = new Date().toISOString();
     for (const r of rows) {
       rates[r.currency] = Number(r.rate);
       if (r.is_base) base = r.currency;
       if (r.updated_at) updatedAt = new Date(r.updated_at.replace(" ", "T") + "Z").toISOString();
     }
+    // The product rule is that GBP is always the base currency.
+    base = "GBP";
     res.json({ base, rates, updatedAt });
   } catch (e) {
     next(e);
@@ -23,8 +25,10 @@ router.get("/", (_req, res, next) => {
 
 router.put("/", (req, res, next) => {
   try {
-    const { base, rates } = req.body || {};
-    if (!base || !rates) return res.status(400).json({ error: "base and rates required" });
+    const { rates } = req.body || {};
+    if (!rates) return res.status(400).json({ error: "rates required" });
+    // Base currency is fixed to GBP regardless of what the client sent.
+    const base = "GBP";
     transaction(() => {
       query("UPDATE exchange_rates SET is_base = 0");
       for (const code of Object.keys(rates)) {
