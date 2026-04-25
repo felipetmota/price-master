@@ -28,7 +28,7 @@ router.get("/", (_req, res, next) => {
 
 router.post("/", (req, res, next) => {
   try {
-    const { contractNumber, description = "", currency = "USD" } = req.body || {};
+    const { contractNumber, description = "", currency = "GBP" } = req.body || {};
     const id = crypto.randomUUID();
     query(
       `INSERT INTO contracts (id, contract_number, description, currency)
