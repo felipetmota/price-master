@@ -49,7 +49,26 @@ router.post("/", (req, res, next) => {
     const rows = Array.isArray(req.body) ? req.body : [req.body];
     const source = req.query.source === "import" ? "import" : "manual";
     const inserted = [];
+    const createdContracts = new Set();
     transaction(() => {
+      // Auto-register contracts that don't exist yet (default currency: GBP).
+      const contractNumbers = new Set(
+        rows.map((r) => (r.contractNumber || "").trim()).filter(Boolean),
+      );
+      for (const cn of contractNumbers) {
+        const { rows: existing } = query(
+          "SELECT 1 FROM contracts WHERE contract_number = ?",
+          [cn],
+        );
+        if (!existing.length) {
+          query(
+            `INSERT OR IGNORE INTO contracts (id, contract_number, description, currency)
+             VALUES (?, ?, ?, 'GBP')`,
+            [crypto.randomUUID(), cn, ""],
+          );
+          createdContracts.add(cn);
+        }
+      }
       for (const r of rows) {
         const id = crypto.randomUUID();
         query(
@@ -68,13 +87,22 @@ router.post("/", (req, res, next) => {
             r.quantityTo ?? 9999999,
             r.unitPrice,
             r.lotPrice,
-            r.currency || "USD",
+            r.currency || "GBP",
           ],
         );
         const { rows: out } = query("SELECT * FROM prices WHERE id = ?", [id]);
         inserted.push(rowToPrice(out[0]));
       }
     });
+    if (createdContracts.size) {
+      writeAudit({
+        user: actorFromRequest(req),
+        action: "contract.create",
+        summary:
+          `Auto-registered ${createdContracts.size} contract(s) from ${source}: ` +
+          Array.from(createdContracts).slice(0, 10).join(", "),
+      });
+    }
     writeAudit({
       user: actorFromRequest(req),
       action: source === "import" ? "price.import" : "price.create",
