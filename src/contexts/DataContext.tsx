@@ -213,7 +213,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       },
 
-      addPrices: (rows, source = "manual") => {
+      addPrices: async (rows, source = "manual") => {
         const BATCH = 500;
         const persist = useApi.current;
         const reloadAfter = async () => {
@@ -231,13 +231,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
         // Small payloads: keep the original synchronous behavior.
         if (rows.length <= BATCH) {
           if (persist) {
-            api
-              .createPrices(rows, source)
-              .then(reloadAfter)
-              .catch((e) => {
-                console.error("[DataContext] createPrices failed", e);
-                toast.error("Failed to save records to the server.");
-              });
+            try {
+              await api.createPrices(rows, source);
+              await reloadAfter();
+            } catch (e) {
+              console.error("[DataContext] createPrices failed", e);
+              toast.error("Failed to save records to the server.");
+              throw e;
+            }
           } else {
             setPrices((cur) => [...cur, ...rows]);
             log(
@@ -254,6 +255,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const total = rows.length;
         const toastId = toast.loading(`Importing 0 / ${total}…`);
         let i = 0;
+        await new Promise<void>((resolve, reject) => {
         const pump = async () => {
           const slice = rows.slice(i, i + BATCH);
           if (persist) {
@@ -262,6 +264,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             } catch (e) {
               console.error("[DataContext] createPrices batch failed", e);
               toast.error("Failed to save batch to the server.", { id: toastId });
+              reject(e);
               return;
             }
           } else {
@@ -285,9 +288,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 rows.map((r) => r.id),
               );
             }
+            resolve();
           }
         };
         pump();
+        });
       },
 
       updatePrice: (id, patch) => {
