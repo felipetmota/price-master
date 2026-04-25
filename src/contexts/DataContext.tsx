@@ -39,7 +39,7 @@ interface DataContextValue {
   setAll: (prices: PriceRecord[], users?: AppUser[]) => void;
   setUsers: (users: AppUser[]) => void;
   reloadUsers: () => Promise<void>;
-  addPrices: (rows: PriceRecord[], source?: "manual" | "import") => void;
+  addPrices: (rows: PriceRecord[], source?: "manual" | "import") => Promise<void>;
   updatePrice: (id: string, patch: Partial<PriceRecord>) => void;
   deletePrices: (ids: string[]) => void;
   bulkUpdatePrices: (
