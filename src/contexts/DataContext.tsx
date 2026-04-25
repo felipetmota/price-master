@@ -218,8 +218,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const persist = useApi.current;
         const reloadAfter = async () => {
           try {
-            const pxs = await api.listPrices();
+            const [pxs, ctrs] = await Promise.all([
+              api.listPrices(),
+              api.listContracts().catch(() => contracts),
+            ]);
             setPrices(pxs);
+            setContracts(ctrs);
           } catch (e) {
             console.warn("[DataContext] reload after addPrices failed", e);
           }
