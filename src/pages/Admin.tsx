@@ -229,7 +229,7 @@ function ContractDialog({
 }) {
   const [contractNumber, setContractNumber] = useState("");
   const [description, setDescription] = useState("");
-  const [currency, setCurrency] = useState<Currency>("USD");
+  const [currency, setCurrency] = useState<Currency>("GBP");
 
   useEffect(() => {
     if (!open) return;
@@ -240,7 +240,7 @@ function ContractDialog({
     } else {
       setContractNumber("");
       setDescription("");
-      setCurrency("USD");
+      setCurrency("GBP");
     }
   }, [open, editing]);
 
@@ -313,25 +313,9 @@ function RatesTab() {
         <div className="flex items-end justify-between gap-4">
           <div className="space-y-1.5 max-w-xs flex-1">
             <Label className="text-xs text-muted-foreground">Base currency</Label>
-            <Select
-              value={draft.base}
-              onValueChange={(v) => {
-                const newBase = v as Currency;
-                // rebase: divide all rates by current rate of newBase
-                const factor = draft.rates[newBase];
-                const next: Record<Currency, number> = { ...draft.rates };
-                if (factor && factor !== 1) {
-                  for (const c of CURRENCIES) next[c] = +(draft.rates[c] / factor).toFixed(6);
-                }
-                next[newBase] = 1;
-                setDraft({ ...draft, base: newBase, rates: next });
-              }}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="h-10 flex items-center rounded-md border bg-muted/40 px-3 font-mono text-sm">
+              GBP <span className="ml-2 text-[10px] text-muted-foreground">(fixed)</span>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
             Last update: <span className="num">{fmtDateTime(draft.updatedAt)}</span>

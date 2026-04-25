@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     id              TEXT    PRIMARY KEY,
     contract_number TEXT    NOT NULL UNIQUE,
     description     TEXT    NOT NULL DEFAULT '',
-    currency        TEXT    NOT NULL DEFAULT 'USD'
+    currency        TEXT    NOT NULL DEFAULT 'GBP'
         CHECK (currency IN ('USD','EUR','GBP','BRL')),
     created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS prices (
     quantity_to           INTEGER NOT NULL DEFAULT 9999999,
     unit_price            REAL,
     lot_price             REAL,
-    currency              TEXT    NOT NULL DEFAULT 'USD'
+    currency              TEXT    NOT NULL DEFAULT 'GBP'
         CHECK (currency IN ('USD','EUR','GBP','BRL')),
     previous_unit_price   REAL,
     previous_lot_price    REAL,
@@ -60,10 +60,10 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
 );
 
 INSERT OR IGNORE INTO exchange_rates (currency, rate, is_base) VALUES
-    ('USD', 1.00, 1),
-    ('EUR', 0.92, 0),
-    ('GBP', 0.79, 0),
-    ('BRL', 5.10, 0);
+    ('USD', 1.27, 0),
+    ('EUR', 1.17, 0),
+    ('GBP', 1.00, 1),
+    ('BRL', 6.45, 0);
 
 -- ---------------------------------------------------------------------
 -- Users (passwords stored as bcrypt hashes)

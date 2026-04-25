@@ -70,7 +70,7 @@ export function parseWorkbookFromBuffer(buf: ArrayBuffer): ParsedWorkbook {
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(pricesSheet, { defval: null });
     for (const r of rows) {
       const qTo = toNumber(r["Quantity To"]) ?? QTY_MAX;
-      const cur = String(r["Currency"] ?? "USD").trim().toUpperCase() as Currency;
+      const cur = String(r["Currency"] ?? "GBP").trim().toUpperCase() as Currency;
       prices.push({
         id: newId(),
         contractNumber: String(r["Contract Number"] ?? "").trim(),
@@ -82,7 +82,7 @@ export function parseWorkbookFromBuffer(buf: ArrayBuffer): ParsedWorkbook {
         quantityTo: qTo,
         unitPrice: toNumber(r["Unit Price"]),
         lotPrice: toNumber(r["Lot Price"]),
-        currency: CURRENCIES.includes(cur) ? cur : "USD",
+        currency: CURRENCIES.includes(cur) ? cur : "GBP",
       });
     }
   }
@@ -104,12 +104,12 @@ export function parseWorkbookFromBuffer(buf: ArrayBuffer): ParsedWorkbook {
   if (contractsSheet) {
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(contractsSheet, { defval: null });
     for (const r of rows) {
-      const cur = String(r["Currency"] ?? "USD").trim().toUpperCase() as Currency;
+      const cur = String(r["Currency"] ?? "GBP").trim().toUpperCase() as Currency;
       contracts.push({
         id: newId(),
         contractNumber: String(r["Contract Number"] ?? "").trim(),
         description: String(r["Description"] ?? "").trim(),
-        currency: CURRENCIES.includes(cur) ? cur : "USD",
+        currency: CURRENCIES.includes(cur) ? cur : "GBP",
         createdAt: new Date().toISOString(),
       });
     }
@@ -118,8 +118,8 @@ export function parseWorkbookFromBuffer(buf: ArrayBuffer): ParsedWorkbook {
   const ratesSheet = wb.Sheets["rates"];
   if (ratesSheet) {
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ratesSheet, { defval: null });
-    const r: Record<Currency, number> = { USD: 1, EUR: 0, GBP: 0, BRL: 0 };
-    let base: Currency = "USD";
+    const r: Record<Currency, number> = { USD: 1.27, EUR: 1.17, GBP: 1, BRL: 6.45 };
+    let base: Currency = "GBP";
     for (const row of rows) {
       const code = String(row["Currency"] ?? "").trim().toUpperCase() as Currency;
       const rate = toNumber(row["Rate"]) ?? 0;
@@ -150,7 +150,7 @@ export function exportPricesToXlsx(
     "Quantity To": p.quantityTo,
     "Unit Price": p.unitPrice,
     "Lot Price": p.lotPrice,
-    "Currency": p.currency ?? "USD",
+    "Currency": p.currency ?? "GBP",
   }));
   const ws = XLSX.utils.json_to_sheet(priceRows, { header: PRICE_HEADERS });
   const wb = XLSX.utils.book_new();

@@ -53,8 +53,11 @@ export default function Dashboard() {
         toast.error("No records found in the 'prices' sheet.");
         return;
       }
-      addPrices(data.prices, "import");
-      toast.success(`${data.prices.length} record(s) imported.`);
+      await addPrices(data.prices, "import");
+      // For small batches addPrices does not show its own toast.
+      if (data.prices.length <= 500) {
+        toast.success(`${data.prices.length} record(s) imported.`);
+      }
     } catch (e) {
       console.error(e);
       toast.error("Failed to import spreadsheet.");

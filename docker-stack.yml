@@ -12,8 +12,16 @@
 #   - CORS_ORIGIN    e.g. https://prices.webtorres.com.br
 #   - IMAGE_TAG      (optional) defaults to "latest"
 #
-# After first deploy, seed users by exec'ing into the API task:
-#   docker exec -it $(docker ps -qf name=price-master_api) \
+# Day-to-day re-deploys:
+#   - In Portainer: Stacks → this stack → "Pull and redeploy" so the
+#     latest images are pulled from GHCR. Schema migrations run
+#     automatically on API boot (server/src/migrate.js), no manual
+#     command is needed.
+#   - The SQLite database lives in the named volume `price_data`.
+#     Do NOT remove it — it is the only place the data is stored.
+#
+# First-time only — seed the default users:
+#   docker exec -it $(docker ps -qf name=price_api) \
 #     node scripts/hash-passwords.js
 # ---------------------------------------------------------------------
 version: "3.8"

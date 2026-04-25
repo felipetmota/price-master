@@ -22,6 +22,23 @@ function ensureSchema() {
     console.log("[migrate] Added users.email column");
   }
 
+  // ---- Force GBP as the base exchange-rate currency on existing DBs.
+  // We never overwrite user-edited rate values; we just toggle is_base.
+  try {
+    const baseRow = db.prepare("SELECT currency FROM exchange_rates WHERE is_base = 1").get();
+    if (!baseRow || baseRow.currency !== "GBP") {
+      db.exec("UPDATE exchange_rates SET is_base = 0");
+      // Make sure GBP exists as a row (it normally does because of seed).
+      db.prepare(
+        `INSERT INTO exchange_rates (currency, rate, is_base) VALUES ('GBP', 1, 1)
+         ON CONFLICT(currency) DO UPDATE SET is_base = 1, rate = CASE WHEN exchange_rates.rate = 0 THEN 1 ELSE exchange_rates.rate END`,
+      ).run();
+      console.log("[migrate] Base currency set to GBP");
+    }
+  } catch (e) {
+    console.warn("[migrate] Could not enforce GBP base:", e.message);
+  }
+
   // ---- Seed X-ray reports on first boot ------------------------------
   try {
     const count = db.prepare("SELECT COUNT(*) AS n FROM xray_reports").get().n;
