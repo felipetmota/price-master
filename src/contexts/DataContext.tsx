@@ -215,25 +215,54 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       addPrices: (rows, source = "manual") => {
         const BATCH = 500;
+        const persist = useApi.current;
+        const reloadAfter = async () => {
+          try {
+            const pxs = await api.listPrices();
+            setPrices(pxs);
+          } catch (e) {
+            console.warn("[DataContext] reload after addPrices failed", e);
+          }
+        };
         // Small payloads: keep the original synchronous behavior.
         if (rows.length <= BATCH) {
-          setPrices((cur) => [...cur, ...rows]);
-          log(
-            source === "import" ? "price.import" : "price.create",
-            source === "import"
-              ? `Imported ${rows.length} record(s) from spreadsheet`
-              : `Created ${rows.length} record(s)`,
-            rows.map((r) => r.id),
-          );
+          if (persist) {
+            api
+              .createPrices(rows, source)
+              .then(reloadAfter)
+              .catch((e) => {
+                console.error("[DataContext] createPrices failed", e);
+                toast.error("Failed to save records to the server.");
+              });
+          } else {
+            setPrices((cur) => [...cur, ...rows]);
+            log(
+              source === "import" ? "price.import" : "price.create",
+              source === "import"
+                ? `Imported ${rows.length} record(s) from spreadsheet`
+                : `Created ${rows.length} record(s)`,
+              rows.map((r) => r.id),
+            );
+          }
           return;
         }
         // Large imports: chunk to keep the UI responsive and show progress.
         const total = rows.length;
         const toastId = toast.loading(`Importing 0 / ${total}…`);
         let i = 0;
-        const pump = () => {
+        const pump = async () => {
           const slice = rows.slice(i, i + BATCH);
-          setPrices((cur) => [...cur, ...slice]);
+          if (persist) {
+            try {
+              await api.createPrices(slice, source);
+            } catch (e) {
+              console.error("[DataContext] createPrices batch failed", e);
+              toast.error("Failed to save batch to the server.", { id: toastId });
+              return;
+            }
+          } else {
+            setPrices((cur) => [...cur, ...slice]);
+          }
           i += slice.length;
           if (i < total) {
             toast.loading(`Importing ${i} / ${total}…`, { id: toastId });
@@ -241,19 +270,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
             setTimeout(pump, 0);
           } else {
             toast.success(`Imported ${total} record(s).`, { id: toastId });
-            log(
-              source === "import" ? "price.import" : "price.create",
-              source === "import"
-                ? `Imported ${total} record(s) from spreadsheet`
-                : `Created ${total} record(s)`,
-              rows.map((r) => r.id),
-            );
+            if (persist) {
+              await reloadAfter();
+            } else {
+              log(
+                source === "import" ? "price.import" : "price.create",
+                source === "import"
+                  ? `Imported ${total} record(s) from spreadsheet`
+                  : `Created ${total} record(s)`,
+                rows.map((r) => r.id),
+              );
+            }
           }
         };
         pump();
       },
 
       updatePrice: (id, patch) => {
+        if (useApi.current) {
+          api
+            .updatePrice(id, patch)
+            .then((updated) =>
+              setPrices((cur) => cur.map((r) => (r.id === id ? updated : r))),
+            )
+            .catch((e) => {
+              console.error("[DataContext] updatePrice failed", e);
+              toast.error("Failed to save changes to the server.");
+            });
+          return;
+        }
         setPrices((cur) =>
           cur.map((r) => {
             if (r.id !== id) return r;
@@ -274,12 +319,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
 
       deletePrices: (ids) => {
+        if (useApi.current) {
+          api
+            .deletePrices(ids)
+            .then(() => {
+              const set = new Set(ids);
+              setPrices((cur) => cur.filter((r) => !set.has(r.id)));
+            })
+            .catch((e) => {
+              console.error("[DataContext] deletePrices failed", e);
+              toast.error("Failed to delete records on the server.");
+            });
+          return;
+        }
         const set = new Set(ids);
         setPrices((cur) => cur.filter((r) => !set.has(r.id)));
         log("price.delete", `Deleted ${ids.length} record(s)`, ids);
       },
 
       bulkUpdatePrices: (matcher, transform, summary) => {
+        // API mode handles bulk update through its own endpoint in the dialog.
+        // This local path remains for fallback (no API) usage.
         let n = 0;
         const affected: string[] = [];
         setPrices((cur) =>
@@ -304,6 +364,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
 
       revertPrice: (id) => {
+        if (useApi.current) {
+          api
+            .revertPrice(id)
+            .then((updated) =>
+              setPrices((cur) => cur.map((r) => (r.id === id ? updated : r))),
+            )
+            .catch((e) => {
+              console.error("[DataContext] revertPrice failed", e);
+              toast.error("Failed to revert record on the server.");
+            });
+          return true;
+        }
         let ok = false;
         setPrices((cur) =>
           cur.map((r) => {
@@ -337,6 +409,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
 
       addContract: (c) => {
+        if (useApi.current) {
+          api
+            .createContract(c)
+            .then((created) => setContracts((cur) => [...cur, created]))
+            .catch((e) => {
+              console.error("[DataContext] createContract failed", e);
+              toast.error("Failed to save contract to the server.");
+            });
+          return;
+        }
         const next: Contract = { ...c, id: newId(), createdAt: new Date().toISOString() };
         setContracts((cur) => [...cur, next]);
         log("contract.create", `Created contract ${c.contractNumber} (${c.currency})`);
@@ -344,6 +426,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       updateContract: (id, patch) => {
         const before = contracts.find((x) => x.id === id);
+        if (useApi.current) {
+          api
+            .updateContract(id, patch)
+            .then((updated) => {
+              setContracts((cur) => cur.map((c) => (c.id === id ? updated : c)));
+              if (before && patch.contractNumber && patch.contractNumber !== before.contractNumber) {
+                // Refresh prices since contract numbers may have propagated server-side.
+                api.listPrices().then(setPrices).catch(() => {});
+              }
+            })
+            .catch((e) => {
+              console.error("[DataContext] updateContract failed", e);
+              toast.error("Failed to update contract on the server.");
+            });
+          return;
+        }
         setContracts((cur) => cur.map((c) => (c.id === id ? { ...c, ...patch } : c)));
         // If contract number changed, just propagate the new number to existing
         // price records that reference this contract. Currency on existing
@@ -369,11 +467,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       deleteContract: (id) => {
         const c = contracts.find((x) => x.id === id);
+        if (useApi.current) {
+          api
+            .deleteContract(id)
+            .then(() => setContracts((cur) => cur.filter((x) => x.id !== id)))
+            .catch((e) => {
+              console.error("[DataContext] deleteContract failed", e);
+              toast.error("Failed to delete contract on the server.");
+            });
+          return;
+        }
         setContracts((cur) => cur.filter((x) => x.id !== id));
         log("contract.delete", `Deleted contract ${c?.contractNumber ?? id}`);
       },
 
       setRates: (r) => {
+        if (useApi.current) {
+          api
+            .putRates(r)
+            .then(() => setRatesState({ ...r, updatedAt: new Date().toISOString() }))
+            .catch((e) => {
+              console.error("[DataContext] putRates failed", e);
+              toast.error("Failed to save exchange rates to the server.");
+            });
+          return;
+        }
         setRatesState({ ...r, updatedAt: new Date().toISOString() });
         log("rates.update", `Updated exchange rates (base ${r.base})`, undefined, { rates: r.rates });
       },
