@@ -48,10 +48,6 @@ export default function XrayEditorDialog({ open, onOpenChange, editing, onSave, 
   const num = (s: string) => (s === "" ? null : Number(s));
 
   const submit = async () => {
-    if (!v.reportNumber?.trim()) {
-      toast.error("Report Number is required.");
-      return;
-    }
     try {
       await onSave(v, editing?.id ?? null);
       onOpenChange(false);
