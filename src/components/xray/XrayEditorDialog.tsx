@@ -69,6 +69,9 @@ export default function XrayEditorDialog({ open, onOpenChange, editing, onSave, 
               value={v.reportNumber ?? ""}
               onChange={(e) => set("reportNumber", e.target.value)}
               placeholder={editing ? "" : "Auto"}
+              readOnly
+              disabled
+              className="bg-muted cursor-not-allowed"
             />
           </Field>
           <Field label="Date">
