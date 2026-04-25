@@ -81,13 +81,34 @@ router.get("/", (_req, res, next) => {
   } catch (e) { next(e); }
 });
 
+router.get("/next-number", (_req, res, next) => {
+  try {
+    const { rows } = query(
+      "SELECT MAX(CAST(report_number AS INTEGER)) AS max_num FROM xray_reports WHERE report_number GLOB '[0-9]*'",
+    );
+    const max = rows[0]?.max_num || 0;
+    res.json({ next: String(Number(max) + 1) });
+  } catch (e) { next(e); }
+});
+
 router.post("/", (req, res, next) => {
   try {
     const rows = Array.isArray(req.body) ? req.body : [req.body];
     const source = req.query.source === "import" ? "import" : "manual";
     const inserted = [];
     transaction(() => {
+      // Helper: get current max numeric report_number to support auto-numbering
+      const getNextNum = () => {
+        const { rows: r } = query(
+          "SELECT MAX(CAST(report_number AS INTEGER)) AS max_num FROM xray_reports WHERE report_number GLOB '[0-9]*'",
+        );
+        return Number(r[0]?.max_num || 0) + 1;
+      };
       for (const r of rows) {
+        // Auto-assign report number when missing/blank.
+        if (!r.reportNumber || !String(r.reportNumber).trim()) {
+          r.reportNumber = String(getNextNum());
+        }
         const id = crypto.randomUUID();
         const placeholders = COLS.map(() => "?").join(",");
         query(

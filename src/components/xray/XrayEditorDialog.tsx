@@ -11,6 +11,8 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   editing: XrayReport | null;
   onSave: (patch: Partial<XrayReport>, id: string | null) => Promise<void> | void;
+  /** Resolves to the next sequential report number (used when creating). */
+  getNextReportNumber?: () => Promise<string>;
 }
 
 function blank(): Partial<XrayReport> {
@@ -24,18 +26,28 @@ function blank(): Partial<XrayReport> {
   };
 }
 
-export default function XrayEditorDialog({ open, onOpenChange, editing, onSave }: Props) {
+export default function XrayEditorDialog({ open, onOpenChange, editing, onSave, getNextReportNumber }: Props) {
   const [v, setV] = useState<Partial<XrayReport>>(blank());
-  useEffect(() => { setV(editing ? { ...editing } : blank()); }, [editing, open]);
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setV({ ...editing });
+      return;
+    }
+    // New report: prefill with the next sequential number.
+    const base = blank();
+    setV(base);
+    if (getNextReportNumber) {
+      getNextReportNumber()
+        .then((n) => setV((cur) => ({ ...cur, reportNumber: cur.reportNumber || n })))
+        .catch(() => {/* leave blank — server will assign on insert */});
+    }
+  }, [editing, open, getNextReportNumber]);
 
   const set = <K extends keyof XrayReport>(k: K, val: XrayReport[K]) => setV((s) => ({ ...s, [k]: val }));
   const num = (s: string) => (s === "" ? null : Number(s));
 
   const submit = async () => {
-    if (!v.reportNumber?.trim()) {
-      toast.error("Report Number is required.");
-      return;
-    }
     try {
       await onSave(v, editing?.id ?? null);
       onOpenChange(false);
@@ -53,7 +65,11 @@ export default function XrayEditorDialog({ open, onOpenChange, editing, onSave }
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
           <Field label="Report Number" required>
-            <Input value={v.reportNumber ?? ""} onChange={(e) => set("reportNumber", e.target.value)} />
+            <Input
+              value={v.reportNumber ?? ""}
+              onChange={(e) => set("reportNumber", e.target.value)}
+              placeholder={editing ? "" : "Auto"}
+            />
           </Field>
           <Field label="Date">
             <Input type="date" value={v.date ?? ""} onChange={(e) => set("date", e.target.value)} />

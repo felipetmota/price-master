@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import AppLayout from "@/components/app/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Printer, Pencil, Trash2, RefreshCw, Search } from "lucide-react";
+import { Plus, Printer, Pencil, Trash2, RefreshCw, Search, Upload } from "lucide-react";
 import { useXrayReports } from "@/hooks/useXrayReports";
 import { XrayReport } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext";
+import * as XLSX from "xlsx";
 import XrayEditorDialog from "@/components/xray/XrayEditorDialog";
 import XrayPrintDialog from "@/components/xray/XrayPrintDialog";
 import {
@@ -15,14 +17,85 @@ import {
 import { toast } from "sonner";
 import { fmtXrayDate } from "@/lib/format";
 
+/** Read a value from a row using any of several possible header spellings. */
+function pick(row: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const found = Object.keys(row).find((h) => h.trim().toLowerCase() === k.trim().toLowerCase());
+    if (found && row[found] != null && row[found] !== "") return String(row[found]).trim();
+  }
+  return "";
+}
+
+function pickNum(row: Record<string, unknown>, ...keys: string[]): number | null {
+  const s = pick(row, ...keys);
+  if (!s) return null;
+  const n = Number(s.replace(",", "."));
+  return isNaN(n) ? null : n;
+}
+
+function pickDate(row: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const found = Object.keys(row).find((h) => h.trim().toLowerCase() === k.trim().toLowerCase());
+    if (!found) continue;
+    const v = row[found];
+    if (!v) continue;
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    const s = String(v).trim();
+    const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return s.slice(0, 10);
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    return s;
+  }
+  return "";
+}
+
+/**
+ * Map a row from an imported workbook to a partial XrayReport.
+ * Accepts both human-friendly headers and the camelCase keys used internally.
+ */
+function mapRow(r: Record<string, unknown>): Partial<XrayReport> {
+  return {
+    reportNumber: pick(r, "reportNumber", "Report Number", "Report No", "Report #"),
+    partNo: pick(r, "partNo", "Part No", "Part Number"),
+    description: pick(r, "description", "Description"),
+    quantity: pick(r, "quantity", "Quantity", "Qty"),
+    date: pickDate(r, "date", "Date", "Report Date"),
+    operationNo: pick(r, "operationNo", "Operation No", "Operation No."),
+    planningCardNo: pick(r, "planningCardNo", "Planning Card No", "Planning Card No."),
+    customer: pick(r, "customer", "Customer"),
+    xrayTechniqueNo: pick(r, "xrayTechniqueNo", "X-Ray Technique No", "X-Ray Technique No."),
+    issue: pick(r, "issue", "Issue"),
+    kv: pick(r, "kv", "kV", "KV"),
+    ma: pick(r, "ma", "mA", "MA"),
+    timeSeconds: pick(r, "timeSeconds", "Time (seconds)", "Time"),
+    sfdMm: pick(r, "sfdMm", "SFD (mm)", "SFD"),
+    filmTypeQty: pick(r, "filmTypeQty", "Type / Quantity of film used", "Film Type/Qty"),
+    xraySerialNo: pick(r, "xraySerialNo", "X-Ray Serial No", "X-Ray Serial No."),
+    acceptedQty: pickNum(r, "acceptedQty", "Accepted Qty", "Accepted"),
+    reworkQty: pickNum(r, "reworkQty", "Re-work Qty", "Rework Qty", "Rework"),
+    rejectQty: pickNum(r, "rejectQty", "Reject Qty", "Reject"),
+    interpreter: pick(r, "interpreter", "Interpreter", "Interpreter (Signature)"),
+    radiographer: pick(r, "radiographer", "Radiographer", "Radiographer (Signature)"),
+    secondScrutineer: pick(r, "secondScrutineer", "2nd Scrutineer", "2nd Scrutineer (Signature)"),
+    radiographicProcedure: pick(r, "radiographicProcedure", "Radiographic Procedure"),
+    acceptanceCriteria: pick(r, "acceptanceCriteria", "Acceptance Criteria"),
+  };
+}
+
 export default function XrayReportsPage() {
-  const { reports, loading, reload, create, update, remove, usingApi } = useXrayReports();
+  const { reports, loading, reload, create, update, remove, usingApi, getNextReportNumber } = useXrayReports();
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<XrayReport | null>(null);
   const [printOpen, setPrintOpen] = useState(false);
   const [printing, setPrinting] = useState<XrayReport | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<XrayReport | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -50,6 +123,30 @@ export default function XrayReportsPage() {
     setConfirmDelete(null);
   };
 
+  const triggerImport = () => fileInputRef.current?.click();
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting same file later
+    if (!f) return;
+    setImporting(true);
+    try {
+      const buf = await f.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const sheet = wb.Sheets["xray_reports"] || wb.Sheets[wb.SheetNames[0]];
+      if (!sheet) throw new Error("Workbook has no readable sheet.");
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+      const parsed: Partial<XrayReport>[] = rows.map((r) => mapRow(r));
+      if (!parsed.length) throw new Error("No rows found in file.");
+      const created = await create(parsed, "import");
+      toast.success(`Imported ${created.length} X-ray report(s).`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Import failed.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -65,6 +162,21 @@ export default function XrayReportsPage() {
             <Button variant="outline" size="sm" onClick={() => reload()} disabled={loading}>
               <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Reload
             </Button>
+            {isAdmin && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={handleFile}
+                />
+                <Button variant="outline" size="sm" onClick={triggerImport} disabled={importing}>
+                  <Upload className={`size-4 ${importing ? "animate-pulse" : ""}`} />
+                  {importing ? "Importing…" : "Import"}
+                </Button>
+              </>
+            )}
             <Button size="sm" onClick={() => { setEditing(null); setEditorOpen(true); }}>
               <Plus className="size-4" /> New report
             </Button>
@@ -149,6 +261,7 @@ export default function XrayReportsPage() {
         onOpenChange={setEditorOpen}
         editing={editing}
         onSave={handleSave}
+        getNextReportNumber={getNextReportNumber}
       />
       <XrayPrintDialog open={printOpen} onOpenChange={setPrintOpen} report={printing} />
 
