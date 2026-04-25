@@ -133,6 +133,8 @@ export const api = {
 
   // X-ray Reports
   listXrayReports: () => request<XrayReport[]>("/api/xray-reports"),
+  nextXrayReportNumber: () =>
+    request<{ next: string }>("/api/xray-reports/next-number"),
   createXrayReports: (rows: Partial<XrayReport>[], source: "manual" | "import" = "manual") =>
     request<XrayReport[]>(`/api/xray-reports?source=${source}`, {
       method: "POST",
